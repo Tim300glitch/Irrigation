@@ -25,6 +25,7 @@ export function hitTest(project: Project, p: Vec, tol: number, opts: { includeLo
   for (const e of project.equipment) if (ok(e)) consider(e.id, dist(p, e.position), pt * 1.3);
   for (const w of project.waterSources) if (ok(w)) consider(w.id, dist(p, w.position), pt * 1.4);
   for (const f of project.fittings) if (ok(f)) consider(f.id, dist(p, f.position), pt);
+  for (const r of project.refPoints ?? []) if (ok(r)) consider(r.id, dist(p, r.position), pt * 1.2);
   if (best) return (best as { id: string }).id;
   for (const t of project.labels) {
     if (!ok(t)) continue;
@@ -87,7 +88,7 @@ export function marqueeHits(project: Project, a: Vec, b: Vec): string[] {
     return !(l && (!l.visible || l.locked)) && !o.locked;
   };
   const ids: string[] = [];
-  for (const s of [...project.sprinklers, ...project.valves, ...project.equipment, ...project.waterSources, ...project.fittings, ...project.plants, ...project.labels]) if (ok(s) && inside(s.position)) ids.push(s.id);
+  for (const s of [...project.sprinklers, ...project.valves, ...project.equipment, ...project.waterSources, ...project.fittings, ...project.plants, ...project.labels, ...(project.refPoints ?? [])]) if (ok(s) && inside(s.position)) ids.push(s.id);
   for (const o of [...project.pipes, ...project.lines, ...project.drips]) if (ok(o) && o.points.every(inside)) ids.push(o.id);
   for (const o of project.areas) if (ok(o) && o.type !== "property" && o.points.every(inside)) ids.push(o.id);
   for (const d of project.dimensions) if (ok(d) && inside(d.a) && inside(d.b)) ids.push(d.id);

@@ -3,6 +3,7 @@ import { useEditorStore } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useAnalysis } from "@/store/analysisStore";
 import { formatFeetInches } from "@/lib/units/units";
+import { originOf, originRef } from "@/lib/plan/refPoints";
 import { AlertOctagon, AlertTriangle, CheckCircle2, Gauge } from "lucide-react";
 import { actions } from "./actions";
 import { MIN_ZOOM, MAX_ZOOM } from "./canvas/viewport";
@@ -19,6 +20,8 @@ export function StatusBar() {
   const analysis = useAnalysis();
   if (!project) return null;
   const zone = project.zones.find((z) => z.id === activeZone);
+  const origin = originRef(project);
+  const o = originOf(project);
   const errs = analysis?.warnings.filter((w) => w.severity === "error").length ?? 0;
   const warns = analysis?.warnings.filter((w) => w.severity === "warning").length ?? 0;
   const hs = analysis?.hyd.status;
@@ -26,7 +29,10 @@ export function StatusBar() {
   const pct = Math.round(((zoom * project.settings.drawingScale) / 96) * 100);
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-slate-200 bg-white px-3 text-[11.5px] text-slate-600 tabular">
-      <span className="w-[190px] truncate">{cursor ? `X ${formatFeetInches(cursor.x)}   Y ${formatFeetInches(cursor.y)}` : "X —   Y —"}</span>
+      <span className="w-[230px] truncate" title={origin ? `Measured from ${origin.name}` : "Measured from the drawing origin"}>
+        {cursor ? `X ${formatFeetInches(cursor.x - o.x)}   Y ${formatFeetInches(cursor.y - o.y)}` : "X —   Y —"}
+        {origin && <span className="text-rose-700"> · from {origin.name}</span>}
+      </span>
       <span className="capitalize">Tool: {tool}</span>
       {snap && snap.kind !== "none" && <span className="text-emerald-700">Snap: {snap.kind}</span>}
       <span>

@@ -148,6 +148,7 @@ export function createProject(meta: Partial<ProjectMeta> = {}): Project {
     plants: [],
     labels: [],
     dimensions: [],
+    refPoints: [],
     sprinklers: [],
     drips: [],
     pipes: [],
@@ -210,7 +211,7 @@ export function migrateProject(p: Project): Project {
     comparison: { ...base.comparison, ...p.comparison },
     layers: base.layers.map((l) => p.layers?.find((x) => x.id === l.id) ?? l),
   };
-  for (const k of ["areas", "lines", "plants", "labels", "dimensions", "sprinklers", "drips", "pipes", "valves", "manifolds", "fittings", "equipment", "waterSources", "zones"] as const) {
+  for (const k of ["areas", "lines", "plants", "labels", "dimensions", "sprinklers", "drips", "pipes", "valves", "manifolds", "fittings", "equipment", "waterSources", "zones", "refPoints"] as const) {
     (out as unknown as Record<string, unknown[]>)[k] = (p as unknown as Record<string, unknown[]>)[k] ?? [];
   }
   out.schemaVersion = SCHEMA_VERSION;

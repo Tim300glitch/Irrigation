@@ -96,3 +96,12 @@ describe("units", () => {
     expect(pipeSizeLabel(2)).toBe('2"');
   });
 });
+
+describe("reference point offsets", () => {
+  test("east/south offsets in feet-inches with direct distance", async () => {
+    const { offsetText } = await import("../plan/refPoints");
+    expect(offsetText({ x: 0, y: 0 }, { x: 12.5, y: 4.25 })).toBe(`12'-6" E, 4'-3" S (13'-2" direct)`);
+    expect(offsetText({ x: 10, y: 10 }, { x: 4, y: 10 })).toBe(`6'-0" W`);
+    expect(offsetText({ x: 1, y: 1 }, { x: 1, y: 1 })).toBe("at the point");
+  });
+});

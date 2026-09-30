@@ -1,7 +1,7 @@
 "use client";
 /** Memoized SVG renderers for each canvas object type (world coordinates, feet). */
 import { memo } from "react";
-import type { Area, Dimension, DripArea, Equipment, Fitting, LineObj, Pipe, Plant, Sprinkler, TextLabel, Valve, WaterSource } from "@/lib/model/types";
+import type { RefPoint, Area, Dimension, DripArea, Equipment, Fitting, LineObj, Pipe, Plant, Sprinkler, TextLabel, Valve, WaterSource } from "@/lib/model/types";
 import type { HeadPerformance } from "@/lib/irrigation/sprinkler";
 import type { HeadResult, PipeResult } from "@/lib/hydraulics/analysis";
 import { arcPath, EQUIPMENT_ABBR, FITTING_ABBR, PIPE_STYLE } from "@/lib/plan/symbols";
@@ -266,6 +266,24 @@ export const LabelShape = memo(function LabelShape({ t, zoom, selected, hovered 
       {(selected || hovered) && <rect x={t.position.x - 0.3} y={t.position.y - t.size - 0.2} width={t.text.length * t.size * 0.58 + 0.6} height={t.size + 0.6} fill="none" stroke={selected ? SEL : HOVER} strokeWidth={1.5 / zoom} transform={`rotate(${t.rotation} ${t.position.x} ${t.position.y})`} />}
       <text x={t.position.x} y={t.position.y} fontSize={t.size} fill={t.color} fontWeight={600} transform={`rotate(${t.rotation} ${t.position.x} ${t.position.y})`} fontFamily="Inter, system-ui" pointerEvents="none">
         {t.text}
+      </text>
+    </g>
+  );
+});
+
+export const RefPointShape = memo(function RefPointShape({ r, zoom, selected, hovered }: { r: RefPoint; zoom: number; selected: boolean; hovered: boolean }) {
+  const s = Math.max(0.5, 7 / zoom);
+  const x = r.position.x;
+  const y = r.position.y;
+  const c = selected ? SEL : hovered ? HOVER : "#be123c";
+  return (
+    <g>
+      <circle cx={x} cy={y} r={s} fill="#fff" stroke={c} strokeWidth={1.6 / zoom} />
+      <path d={`M${x},${y - s} A${s},${s} 0 0,1 ${x + s},${y} L${x},${y} Z M${x},${y + s} A${s},${s} 0 0,1 ${x - s},${y} L${x},${y} Z`} fill={c} />
+      <path d={`M${x - s * 1.7},${y} H${x + s * 1.7} M${x},${y - s * 1.7} V${y + s * 1.7}`} stroke={c} strokeWidth={1 / zoom} />
+      <text x={x + s * 1.5} y={y - s * 1.3} fontSize={11 / zoom} fontWeight={700} fill={c} style={{ paintOrder: "stroke" }} stroke="#fff" strokeWidth={3 / zoom} pointerEvents="none" fontFamily="Inter, system-ui">
+        {r.name}
+        {r.isOrigin ? " (0,0)" : ""}
       </text>
     </g>
   );

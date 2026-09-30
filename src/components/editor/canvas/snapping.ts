@@ -29,6 +29,10 @@ export function snapPoint(project: Project, p: Vec, o: SnapOptions): SnapResult 
     for (const e of project.equipment) if (!ex.has(e.id)) take(e.position, "device", o.tol * 0.2);
     for (const f of project.fittings) if (!ex.has(f.id)) take(f.position, "device", o.tol * 0.2);
   }
+  // reference points always snap (they exist to be measured from)
+  for (const r of project.refPoints ?? []) if (!ex.has(r.id)) take(r.position, "vertex", o.tol * 0.4);
+  if (o.sprinkler) {
+  }
   if (o.vertex) {
     for (const a of project.areas) if (!ex.has(a.id)) for (const q of a.points) take(q, "vertex", o.tol * 0.15);
     for (const l of project.lines) if (!ex.has(l.id)) for (const q of l.points) take(q, "vertex", o.tol * 0.15);

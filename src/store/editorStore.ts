@@ -20,6 +20,7 @@ export type Tool =
   | "source"
   | "measure"
   | "dimension"
+  | "refpoint"
   | "calibrate";
 
 export type MeasureMode = "distance" | "area" | "angle" | "radius";

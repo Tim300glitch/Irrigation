@@ -132,6 +132,17 @@ export interface TextLabel {
   locked?: boolean;
 }
 
+/** A named survey/benchmark point that locations are measured from (e.g. "RP1 — NW house corner"). */
+export interface RefPoint {
+  id: Id;
+  name: string;
+  position: Vec;
+  /** measurements, rulers and cursor coordinates are shown relative to this point */
+  isOrigin?: boolean;
+  layer: LayerId;
+  locked?: boolean;
+}
+
 export type DimensionKind = "aligned" | "horizontal" | "vertical";
 
 export interface Dimension {
@@ -406,6 +417,7 @@ export interface Project {
   plants: Plant[];
   labels: TextLabel[];
   dimensions: Dimension[];
+  refPoints: RefPoint[];
   sprinklers: Sprinkler[];
   drips: DripArea[];
   pipes: Pipe[];
@@ -433,6 +445,7 @@ export const OBJECT_COLLECTIONS = [
   "fittings",
   "equipment",
   "waterSources",
+  "refPoints",
 ] as const;
 export type ObjectCollection = (typeof OBJECT_COLLECTIONS)[number];
 
@@ -448,7 +461,8 @@ export type AnyObject =
   | Valve
   | Fitting
   | Equipment
-  | WaterSource;
+  | WaterSource
+  | RefPoint;
 
 /** Lightweight summary persisted alongside a project for dashboard use. */
 export interface ProjectSummary {

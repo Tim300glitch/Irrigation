@@ -5,7 +5,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { useAnalysis } from "@/store/analysisStore";
 import type { Project } from "@/lib/model/types";
 import { headPerformance } from "@/lib/irrigation/sprinkler";
-import { AreaShape, CanvasPatterns, CoverageShape, DimensionShape, DripShape, EquipmentShape, FittingShape, LabelShape, LineShape, PipeShape, PlantShape, SourceShape, SprinklerShape, ValveShape } from "./shapes";
+import { RefPointShape, AreaShape, CanvasPatterns, CoverageShape, DimensionShape, DripShape, EquipmentShape, FittingShape, LabelShape, LineShape, PipeShape, PlantShape, SourceShape, SprinklerShape, ValveShape } from "./shapes";
 import { DraftOverlay, SelectionOverlay } from "./Overlays";
 import { useCanvasController, type MarqueeState } from "./useCanvasController";
 import { niceStep, toScreen } from "./viewport";
@@ -16,6 +16,7 @@ import { locate, referenceLines } from "@/lib/plan/references";
 import { formatFeetInches } from "@/lib/units/units";
 
 const RULER = 22;
+const ZERO = { x: 0, y: 0 };
 const PIPE_ORDER = ["sleeve", "lateral", "drip", "mainline", "wire"];
 
 const CURSORS: Record<string, string> = {
@@ -195,6 +196,7 @@ function WorldLayers({ project }: { project: Project }) {
         ))}
       {v("measurements") && project.dimensions.map((d) => <DimensionShape key={d.id} d={d} zoom={zoom} selected={sel.has(d.id)} hovered={hover === d.id} />)}
       {v("labels") && project.labels.map((t) => <LabelShape key={t.id} t={t} zoom={zoom} selected={sel.has(t.id)} hovered={hover === t.id} />)}
+      {v("measurements") && (project.refPoints ?? []).map((r) => <RefPointShape key={r.id} r={r} zoom={zoom} selected={sel.has(r.id)} hovered={hover === r.id} />)}
       {installer && <InstallerRefs project={project} />}
     </g>
   );
@@ -256,16 +258,18 @@ function HeatmapImage({ grid }: { grid: CoverageGrid }) {
 
 function Rulers({ width, height }: { width: number; height: number }) {
   const vp = useEditorStore((s) => s.viewport);
+  const originPos = useProjectStore((s) => s.project?.refPoints?.find((r) => r.isOrigin)?.position);
+  const origin = originPos ?? ZERO;
   const cursor = useEditorStore((s) => s.cursor);
   const step = niceStep(vp.zoom, 56);
   const minor = step < 1 ? step / (step <= 1 / 12 ? 1 : 3) : step === 1 ? 1 / 4 : step / (step >= 10 ? 5 : 2);
   const ticksX: React.ReactNode[] = [];
   const ticksY: React.ReactNode[] = [];
-  const x0 = Math.floor(vp.x / minor) * minor;
-  const x1 = vp.x + width / vp.zoom;
+  const x0 = Math.floor((vp.x - origin.x) / minor) * minor;
+  const x1 = vp.x - origin.x + width / vp.zoom;
   for (let i = Math.floor(x0 / minor); i * minor <= x1; i++) {
     const v = i * minor;
-    const sx = (v - vp.x) * vp.zoom;
+    const sx = (v + origin.x - vp.x) * vp.zoom;
     const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-4;
     ticksX.push(<line key={`x${v.toFixed(3)}`} x1={sx} y1={isMajor ? 8 : 15} x2={sx} y2={RULER} stroke="#64748b" strokeWidth={isMajor ? 1 : 0.6} />);
     if (isMajor)
@@ -275,11 +279,11 @@ function Rulers({ width, height }: { width: number; height: number }) {
         </text>,
       );
   }
-  const y0 = Math.floor(vp.y / minor) * minor;
-  const y1 = vp.y + height / vp.zoom;
+  const y0 = Math.floor((vp.y - origin.y) / minor) * minor;
+  const y1 = vp.y - origin.y + height / vp.zoom;
   for (let i = Math.floor(y0 / minor); i * minor <= y1; i++) {
     const v = i * minor;
-    const sy = (v - vp.y) * vp.zoom;
+    const sy = (v + origin.y - vp.y) * vp.zoom;
     const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-4;
     ticksY.push(<line key={`y${v.toFixed(3)}`} y1={sy} x1={isMajor ? 8 : 15} y2={sy} x2={RULER} stroke="#64748b" strokeWidth={isMajor ? 1 : 0.6} />);
     if (isMajor)
@@ -373,4 +377,5 @@ const TOOL_HINTS: Partial<Record<string, (n: number, shape: string) => string | 
   equipment: () => "Click to place equipment",
   plant: () => "Click to place",
   text: () => "Click to place a text label",
+  refpoint: () => "Click a fixed spot (house corner, hose bib, meter) to place a reference point",
 };

@@ -36,6 +36,7 @@ import {
   Target,
   History,
   Info,
+  Crosshair,
 } from "lucide-react";
 import { useEditorStore, type Tool } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
@@ -52,6 +53,7 @@ const CURSOR_TOOLS: { tool: Tool; icon: React.ReactNode; label: string; key: str
   { tool: "valve", icon: <Square size={15} />, label: "Place valve", key: "A" },
   { tool: "measure", icon: <Ruler size={16} />, label: "Measure", key: "M" },
   { tool: "dimension", icon: <MoveHorizontal size={16} />, label: "Dimension", key: "D" },
+  { tool: "refpoint", icon: <Crosshair size={16} />, label: "Reference point", key: "R" },
   { tool: "text", icon: <Type size={16} />, label: "Text label", key: "T" },
 ];
 

@@ -14,6 +14,7 @@ import type { Project } from "../model/types";
 import type { ProjectAnalysis } from "../analysis";
 import { projectBounds, renderPlanSvg } from "../plan/planSvg";
 import { locate, referenceLines } from "../plan/references";
+import { offsetText } from "../plan/refPoints";
 import { formatCurrency, formatFeetInches, pipeSizeLabel, formatArea } from "../units/units";
 import { HEAD_NAMES, PIPE_STYLE } from "../plan/symbols";
 import { headPerformance, precipClass } from "../irrigation/sprinkler";
@@ -435,12 +436,13 @@ async function installerTableSheet(c: Ctx) {
   const area = frame(c, "Head location schedule");
   const refs = referenceLines(project);
   const labels = analysis.labels;
+  const rp = project.refPoints?.find((r) => r.isOrigin) ?? project.refPoints?.[0];
   const heads = [...project.sprinklers].sort((a, b) => (labels.get(a.id) ?? "").localeCompare(labels.get(b.id) ?? "", undefined, { numeric: true }));
   const rows = heads.map((h) => {
     const perf = headPerformance(h);
     const loc = locate(h.position, refs);
     const z = project.zones.find((zz) => zz.id === h.zoneId);
-    return [labels.get(h.id) ?? "", z ? String(z.number) : "—", perf.product.model, perf.nozzle.name, `${Math.round(h.arc)}°`, formatFeetInches(perf.radius), loc.d1 ? `${formatFeetInches(loc.d1.dist)} from ${loc.d1.name}` : "", loc.d2 ? `${formatFeetInches(loc.d2.dist)} from ${loc.d2.name}` : ""];
+    return [labels.get(h.id) ?? "", z ? String(z.number) : "—", perf.product.model, perf.nozzle.name, `${Math.round(h.arc)}°`, formatFeetInches(perf.radius), loc.d1 ? `${formatFeetInches(loc.d1.dist)} from ${loc.d1.name}` : "", rp ? offsetText(rp.position, h.position) : loc.d2 ? `${formatFeetInches(loc.d2.dist)} from ${loc.d2.name}` : ""];
   });
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -455,7 +457,7 @@ async function installerTableSheet(c: Ctx) {
     { label: "ARC", w: w * 0.05, align: "right" as const },
     { label: "THROW", w: w * 0.06, align: "right" as const },
     { label: "REFERENCE 1", w: w * 0.235 },
-    { label: "REFERENCE 2", w: w * 0.235 },
+    { label: rp ? `FROM ${rp.name.toUpperCase()}` : "REFERENCE 2", w: w * 0.235 },
   ];
   let rest = rows;
   let y = area.y + 16;

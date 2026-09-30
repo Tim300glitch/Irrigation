@@ -37,6 +37,7 @@ export function projectBounds(project: Project, pad = 6): Bounds {
     ...project.pipes.flatMap((p) => p.points),
     ...project.sprinklers.map((s) => s.position),
     ...project.waterSources.map((s) => s.position),
+    ...(project.refPoints ?? []).map((r) => r.position),
   ];
   if (!pts.length) return { minX: 0, minY: 0, maxX: 100, maxY: 80 };
   const b = boundsOf(pts);
@@ -275,6 +276,14 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
       }
     }
   }
+  if (visible.has("measurements"))
+    for (const r of project.refPoints ?? []) {
+      const x = tx(r.position.x);
+      const y = ty(r.position.y);
+      const c = ink ? "#111" : "#be123c";
+      out.push(`<circle cx="${f(x)}" cy="${f(y)}" r="2.4" fill="#fff" stroke="${c}" stroke-width="0.6"/><path d="M${f(x)},${f(y - 2.4)} A2.4,2.4 0 0,1 ${f(x + 2.4)},${f(y)} L${f(x)},${f(y)} Z M${f(x)},${f(y + 2.4)} A2.4,2.4 0 0,1 ${f(x - 2.4)},${f(y)} L${f(x)},${f(y)} Z" fill="${c}"/>`);
+      out.push(`<text x="${f(x + 3.4)}" y="${f(y - 2.6)}" font-size="${f(fontSmall)}" font-family="helvetica" font-weight="bold" fill="${c}">${esc(r.name)}${r.isOrigin ? " (0,0)" : ""}</text>`);
+    }
   for (const t of project.labels) {
     if (!visible.has(t.layer)) continue;
     out.push(`<text x="${f(tx(t.position.x))}" y="${f(ty(t.position.y))}" font-size="${f(Math.max(3.5, t.size * s))}" font-family="helvetica" fill="${ink ? "#111" : t.color}" transform="rotate(${t.rotation} ${f(tx(t.position.x))} ${f(ty(t.position.y))})">${esc(t.text)}</text>`);

@@ -2,7 +2,7 @@
 import { useProjectStore } from "@/store/projectStore";
 import { useEditorStore } from "@/store/editorStore";
 import { useAnalysis } from "@/store/analysisStore";
-import type { Area, AreaType, BackflowType, DripArea, Equipment, Fitting, FittingType, LineObj, MeterSize, Pipe, PipeKind, PipeMaterial, PlantType, Project, SoilType, Sprinkler, SunExposure, TextLabel, Valve, ValveType, WaterSource, Dimension, Plant } from "@/lib/model/types";
+import type { RefPoint, Area, AreaType, BackflowType, DripArea, Equipment, Fitting, FittingType, LineObj, MeterSize, Pipe, PipeKind, PipeMaterial, PlantType, Project, SoilType, Sprinkler, SunExposure, TextLabel, Valve, ValveType, WaterSource, Dimension, Plant } from "@/lib/model/types";
 import { findObject } from "@/lib/editor/ops";
 import { Badge, Button, Field, NumberInput, Section, Select, Stat, TextInput, Toggle, LengthInput } from "../ui";
 import { allProducts, getProduct, getNozzle } from "@/lib/catalog/sprinklers";
@@ -23,6 +23,8 @@ import { fitArc } from "@/lib/irrigation/autoLayout";
 import { isIrrigated, isNoSpray } from "@/lib/irrigation/site";
 import { pointInPolygon, type Vec } from "@/lib/geometry/geometry";
 import { useState } from "react";
+import { offsetText, originOf } from "@/lib/plan/refPoints";
+import { uid } from "@/lib/model/factory";
 
 function useUpdate() {
   const apply = useProjectStore((s) => s.apply);
@@ -92,6 +94,8 @@ export function PropertiesPanel() {
       return <DimensionProps d={ref.obj as Dimension} header={header} />;
     case "plants":
       return <PlantProps p={ref.obj as Plant} header={header} />;
+    case "refPoints":
+      return <RefPointProps r={ref.obj as RefPoint} project={project} header={header} />;
   }
   return null;
 }
@@ -222,9 +226,10 @@ function SprinklerProps({ s, project, header }: { s: Sprinkler; project: Project
           <span className="font-semibold">{label}</span> {loc.text || "—"}
         </p>
         <p className="mt-1 text-[11px] text-slate-500">
-          X {formatFeetInches(s.position.x)}, Y {formatFeetInches(s.position.y)} from drawing origin
+          X {formatFeetInches(s.position.x - originOf(project).x)}, Y {formatFeetInches(s.position.y - originOf(project).y)} from {project.refPoints?.find((r) => r.isOrigin)?.name ?? "drawing origin"}
         </p>
       </Section>
+      <RefOffsets p={s.position} />
     </div>
   );
 }
@@ -466,6 +471,7 @@ function ValveProps({ v, project, header }: { v: Valve; project: Project; header
           </Field>
         </div>
       </Section>
+      <RefOffsets p={v.position} />
     </div>
   );
 }
@@ -560,6 +566,7 @@ function SourceProps({ w, header }: { w: WaterSource; header: Header }) {
           </Field>
         </div>
       </Section>
+      <RefOffsets p={w.position} />
     </div>
   );
 }
@@ -621,6 +628,7 @@ function FittingProps({ f, header }: { f: Fitting; header: Header }) {
         </div>
         <p className="mt-2 text-[11px] text-slate-500">Manually placed fittings replace automatically inferred fittings at the same location.</p>
       </Section>
+      <RefOffsets p={f.position} />
     </div>
   );
 }
@@ -646,6 +654,7 @@ function EquipmentProps({ e, header }: { e: Equipment; header: Header }) {
           )}
         </div>
       </Section>
+      <RefOffsets p={e.position} />
     </div>
   );
 }
@@ -818,6 +827,91 @@ function ProjectSettingsPanel({ project }: { project: Project }) {
       </Section>
       <Section title="Units">
         <Select value={st.unitSystem} onChange={(v) => apply((d) => void (d.settings.unitSystem = v))} options={[{ value: "imperial", label: "Imperial (ft, GPM, PSI)" }, { value: "metric", label: "Metric display (m, L/min, kPa)" }]} />
+      </Section>
+    </div>
+  );
+}
+
+/** Offsets from every reference point, with one click to add dimension lines. */
+export function RefOffsets({ p }: { p: Vec }) {
+  const project = useProjectStore((s) => s.project)!;
+  const apply = useProjectStore((s) => s.apply);
+  const set = useEditorStore((s) => s.setTool);
+  const refs = project.refPoints ?? [];
+  return (
+    <Section title="From reference points">
+      {!refs.length && (
+        <p className="text-[12px] text-slate-500">
+          Place a reference point (<button className="text-brand-700 hover:underline" onClick={() => set("refpoint")}>R</button>) at a fixed spot such as a house corner or hose bib to see this location measured from it.
+        </p>
+      )}
+      <div className="space-y-1.5">
+        {refs.map((r) => (
+          <div key={r.id} className="flex items-start justify-between gap-2 text-[12px]">
+            <div className="min-w-0">
+              <span className="font-semibold text-rose-700">{r.name}</span>
+              {r.isOrigin && <span className="ml-1 text-[10.5px] text-slate-500">(origin)</span>}
+              <div className="text-slate-700">{offsetText(r.position, p)}</div>
+            </div>
+            <button
+              className="shrink-0 rounded px-1.5 py-0.5 text-[11px] text-brand-700 ring-1 ring-brand-200 hover:bg-brand-50"
+              title="Add horizontal and vertical dimension lines from this reference point"
+              onClick={() =>
+                apply((d) => {
+                  const a = r.position;
+                  if (Math.abs(p.x - a.x) > 1 / 24) d.dimensions.push({ id: uid("dim"), kind: "horizontal", a, b: { x: p.x, y: a.y }, offset: -2, layer: "measurements" });
+                  if (Math.abs(p.y - a.y) > 1 / 24) d.dimensions.push({ id: uid("dim"), kind: "vertical", a: { x: p.x, y: a.y }, b: p, offset: 2, layer: "measurements" });
+                })
+              }
+            >
+              Dimension
+            </button>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function RefPointProps({ r, project, header }: { r: RefPoint; project: Project; header: Header }) {
+  const up = useUpdate();
+  const apply = useProjectStore((s) => s.apply);
+  const o = originOf(project);
+  return (
+    <div>
+      {header(r.name, r.isOrigin ? "Reference point · measuring origin (0,0)" : "Reference point")}
+      <Section title="Reference point">
+        <div className="space-y-2">
+          <Field label="Name" hint="e.g. NW house corner, hose bib, meter box">
+            <TextInput value={r.name} onChange={(v) => up<RefPoint>(r.id, (x) => void (x.name = v))} />
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={r.isOrigin ? "X" : "X from origin"}>
+              <LengthInput value={r.position.x - o.x} disabled={r.isOrigin} onChange={(v) => up<RefPoint>(r.id, (x) => void (x.position = { x: o.x + v, y: x.position.y }))} />
+            </Field>
+            <Field label={r.isOrigin ? "Y" : "Y from origin"}>
+              <LengthInput value={r.position.y - o.y} disabled={r.isOrigin} onChange={(v) => up<RefPoint>(r.id, (x) => void (x.position = { x: x.position.x, y: o.y + v }))} />
+            </Field>
+          </div>
+          <Toggle
+            checked={!!r.isOrigin}
+            onChange={(v) =>
+              apply((d) => {
+                for (const x of d.refPoints ?? []) x.isOrigin = v && x.id === r.id ? true : undefined;
+              })
+            }
+            label="Measure everything from this point (0,0)"
+          />
+          <p className="text-[11px] text-slate-500">The rulers and cursor coordinates start at the origin point. Select any head, valve or piece of equipment to see its distance from each reference point.</p>
+        </div>
+      </Section>
+      <Section title="Other reference points">
+        {(project.refPoints ?? []).filter((x) => x.id !== r.id).map((x) => (
+          <div key={x.id} className="text-[12px]">
+            <span className="font-semibold text-rose-700">{x.name}</span>: {offsetText(r.position, x.position)}
+          </div>
+        ))}
+        {(project.refPoints ?? []).length < 2 && <p className="text-[12px] text-slate-500">Only one reference point placed.</p>}
       </Section>
     </div>
   );

@@ -19,6 +19,7 @@ export const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "M", action: "Measure" },
   { keys: "D", action: "Dimension" },
   { keys: "T", action: "Text label" },
+  { keys: "R", action: "Reference point (measure from it)" },
   { keys: "G", action: "Toggle grid" },
   { keys: "C", action: "Toggle coverage arcs" },
   { keys: "0", action: "Zoom to fit" },
@@ -39,7 +40,7 @@ export const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "?", action: "Show this help" },
 ];
 
-const TOOL_KEYS: Record<string, Tool> = { v: "select", h: "pan", p: "pipe", s: "sprinkler", f: "fitting", a: "valve", m: "measure", d: "dimension", t: "text" };
+const TOOL_KEYS: Record<string, Tool> = { r: "refpoint", v: "select", h: "pan", p: "pipe", s: "sprinkler", f: "fitting", a: "valve", m: "measure", d: "dimension", t: "text" };
 
 export function useShortcuts(finishDraft: () => void) {
   useEffect(() => {

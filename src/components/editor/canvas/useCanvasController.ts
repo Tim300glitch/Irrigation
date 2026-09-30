@@ -154,6 +154,18 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         ed.set({ rightTab: "properties" });
         return;
       }
+      case "refpoint": {
+        const id = uid("ref");
+        P().apply((d) => {
+          const list = (d.refPoints ??= []);
+          const n = list.length + 1;
+          list.push({ id, name: `RP${n}`, position: p, isOrigin: list.length === 0 ? false : undefined, layer: "measurements" });
+        });
+        ed.select([id]);
+        ed.set({ rightTab: "properties" });
+        ed.showToast("Reference point placed — rename it or set it as the measuring origin in Properties", "success");
+        return;
+      }
       case "plant": {
         const id = uid("plant");
         P().apply((d) => {
@@ -519,7 +531,7 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         return;
       }
       // hover + snap preview
-      const drawing = ["area", "line", "drip", "pipe", "dimension", "measure", "sprinkler", "valve", "equipment", "source", "fitting", "plant", "text"].includes(ed.tool);
+      const drawing = ["area", "line", "drip", "pipe", "dimension", "measure", "sprinkler", "valve", "equipment", "source", "fitting", "plant", "text", "refpoint"].includes(ed.tool);
       if (drawing) {
         const last = ed.tool === "measure" ? ed.measurePoints[ed.measurePoints.length - 1] : ed.draft[ed.draft.length - 1];
         const s = snapFor(world, e, undefined, ed.tool === "dimension" && ed.draft.length >= 2 ? undefined : last);

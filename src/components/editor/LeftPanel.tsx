@@ -208,6 +208,7 @@ export function LeftPanel() {
           ).map(([m, label]) => (
             <Tile key={m} active={tool === "measure" && opts.measureMode === m} onClick={() => useEditorStore.setState({ opts: { ...opts, measureMode: m }, tool: "measure", measurePoints: [] })} icon={<Crosshair size={14} />} label={label} />
           ))}
+          <Tile active={tool === "refpoint"} onClick={() => use("refpoint")} icon={<Crosshair size={14} />} label="Reference point" />
           <Tile active={tool === "dimension" && opts.dimensionKind !== "horizontal" && opts.dimensionKind !== "vertical"} onClick={() => use("dimension", { dimensionKind: "auto" })} icon={<Spline size={14} />} label="Aligned dim." />
           <Tile active={tool === "dimension" && (opts.dimensionKind === "horizontal" || opts.dimensionKind === "vertical")} onClick={() => use("dimension", { dimensionKind: "horizontal" })} icon={<Spline size={14} />} label="Linear dim." />
         </div>
