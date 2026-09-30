@@ -106,7 +106,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
     }
     if (o.showLabels && a.showLabel && !o.installer) {
       const c = labelPoint(a.points);
-      out.push(`<text x="${f(tx(c.x))}" y="${f(ty(c.y))}" font-size="${f(fontSmall * 1.2)}" font-family="Helvetica" fill="#475569" text-anchor="middle" letter-spacing="0.3">${esc(a.name.toUpperCase())}</text>`);
+      out.push(`<text x="${f(tx(c.x))}" y="${f(ty(c.y))}" font-size="${f(fontSmall * 1.2)}" font-family="helvetica" fill="#475569" text-anchor="middle">${esc(a.name.toUpperCase())}</text>`);
     }
   }
   for (const l of project.lines) {
@@ -143,7 +143,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
     const c = d.zoneId ? zoneColor.get(d.zoneId) ?? "#0d9488" : "#0d9488";
     out.push(`<polygon points="${pts(d.points)}" fill="${ink ? "url(#p-hatchh)" : c}" fill-opacity="${ink ? 1 : 0.12}" stroke="${ink ? "#333" : c}" stroke-width="0.6" stroke-dasharray="4 2"/>`);
     const cc = labelPoint(d.points);
-    out.push(`<text x="${f(tx(cc.x))}" y="${f(ty(cc.y))}" font-size="${f(fontSmall)}" font-family="Helvetica" text-anchor="middle" fill="#0f172a">DRIP ${d.zoneId ? `Z${zoneNum.get(d.zoneId)}` : ""} ${d.emitterGph}GPH@${d.emitterSpacingIn}"</text>`);
+    out.push(`<text x="${f(tx(cc.x))}" y="${f(ty(cc.y))}" font-size="${f(fontSmall)}" font-family="helvetica" text-anchor="middle" fill="#0f172a">DRIP ${d.zoneId ? `Z${zoneNum.get(d.zoneId)}` : ""} ${d.emitterGph}GPH@${d.emitterSpacingIn}"</text>`);
   }
 
   // coverage arcs
@@ -189,7 +189,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
         if (ang < -90) ang += 180;
         const mx = tx((a.x + c.x) / 2);
         const my = ty((a.y + c.y) / 2);
-        out.push(`<text x="${f(mx)}" y="${f(my - 1.4)}" font-size="${f(fontSmall * 0.85)}" font-family="Helvetica" text-anchor="middle" fill="${ink ? "#111" : color}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${esc(pipeSizeLabel(size))}${p.kind === "mainline" ? " ML" : ""}</text>`);
+        out.push(`<text x="${f(mx)}" y="${f(my - 1.4)}" font-size="${f(fontSmall * 0.85)}" font-family="helvetica" text-anchor="middle" fill="${ink ? "#111" : color}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${esc(pipeSizeLabel(size))}${p.kind === "mainline" ? " ML" : ""}</text>`);
       }
     }
   }
@@ -204,14 +204,14 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
     if (!visible.has(e.layer)) continue;
     const x = tx(e.position.x);
     const y = ty(e.position.y);
-    out.push(`<rect x="${f(x - 3.4)}" y="${f(y - 2.6)}" width="6.8" height="5.2" fill="#fff" stroke="#111" stroke-width="0.5"/><text x="${f(x)}" y="${f(y + 1.6)}" font-size="3.6" font-family="Helvetica" font-weight="bold" text-anchor="middle">${EQUIPMENT_ABBR[e.type]}</text>`);
+    out.push(`<rect x="${f(x - 3.4)}" y="${f(y - 2.6)}" width="6.8" height="5.2" fill="#fff" stroke="#111" stroke-width="0.5"/><text x="${f(x)}" y="${f(y + 1.6)}" font-size="3.6" font-family="helvetica" font-weight="bold" text-anchor="middle">${EQUIPMENT_ABBR[e.type]}</text>`);
   }
   for (const w of project.waterSources) {
     const x = tx(w.position.x);
     const y = ty(w.position.y);
     const hex = [0, 60, 120, 180, 240, 300].map((a) => `${f(x + 4.2 * Math.cos((a * Math.PI) / 180))},${f(y + 4.2 * Math.sin((a * Math.PI) / 180))}`).join(" ");
-    out.push(`<polygon points="${hex}" fill="${ink ? "#fff" : "#dbeafe"}" stroke="#111" stroke-width="0.6"/><text x="${f(x)}" y="${f(y + 1.3)}" font-size="3.2" font-family="Helvetica" font-weight="bold" text-anchor="middle">POC</text>`);
-    if (w.backflow !== "none") out.push(`<text x="${f(x + 5.5)}" y="${f(y + 1.3)}" font-size="3.4" font-family="Helvetica">BF (${w.backflow.toUpperCase()})</text>`);
+    out.push(`<polygon points="${hex}" fill="${ink ? "#fff" : "#dbeafe"}" stroke="#111" stroke-width="0.6"/><text x="${f(x)}" y="${f(y + 1.3)}" font-size="3.2" font-family="helvetica" font-weight="bold" text-anchor="middle">POC</text>`);
+    if (w.backflow !== "none") out.push(`<text x="${f(x + 5.5)}" y="${f(y + 1.3)}" font-size="3.4" font-family="helvetica">BF (${w.backflow.toUpperCase()})</text>`);
   }
   // valves
   for (const v of project.valves) {
@@ -221,7 +221,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
     const y = ty(v.position.y);
     const c = z && !ink ? z.color : "#fff";
     out.push(`<rect x="${f(x - 2.6)}" y="${f(y - 2.6)}" width="5.2" height="5.2" fill="${c}" stroke="#111" stroke-width="0.6"/>`);
-    out.push(`<text x="${f(x)}" y="${f(y + 1.5)}" font-size="4" font-family="Helvetica" font-weight="bold" text-anchor="middle" fill="${z && !ink ? "#fff" : "#111"}">${z ? z.number : v.type === "master" ? "M" : "V"}</text>`);
+    out.push(`<text x="${f(x)}" y="${f(y + 1.5)}" font-size="4" font-family="helvetica" font-weight="bold" text-anchor="middle" fill="${z && !ink ? "#fff" : "#111"}">${z ? z.number : v.type === "master" ? "M" : "V"}</text>`);
   }
   // manifolds
   for (const m of project.manifolds) {
@@ -229,7 +229,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
     if (!vs.length) continue;
     const mb = boundsOf(vs.map((v) => v.position));
     out.push(`<rect x="${f(tx(mb.minX) - 5)}" y="${f(ty(mb.minY) - 5)}" width="${f((mb.maxX - mb.minX) * s + 10)}" height="${f((mb.maxY - mb.minY) * s + 10)}" fill="none" stroke="#111" stroke-width="0.4" stroke-dasharray="2 1"/>`);
-    out.push(`<text x="${f(tx(mb.minX) - 5)}" y="${f(ty(mb.minY) - 6.5)}" font-size="${f(fontSmall * 0.9)}" font-family="Helvetica">${esc(m.name.toUpperCase())}</text>`);
+    out.push(`<text x="${f(tx(mb.minX) - 5)}" y="${f(ty(mb.minY) - 6.5)}" font-size="${f(fontSmall * 0.9)}" font-family="helvetica">${esc(m.name.toUpperCase())}</text>`);
   }
 
   // heads
@@ -254,7 +254,7 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
       out.push(`<path d="${arcPath(x, y, R, h.arcStart, h.arc)}" fill="${color}"/>`);
       if (cat === "spray" || cat === "rotary" || cat === "microspray") out.push(`<circle cx="${f(x)}" cy="${f(y)}" r="${R * 0.45}" fill="#fff" stroke="${color}" stroke-width="0.3"/>`);
     }
-    if (o.showLabels && labels) out.push(`<text x="${f(x + R + 0.8)}" y="${f(y - R + 0.2)}" font-size="${f(fontSmall * 0.85)}" font-family="Helvetica" fill="#111">${esc(labels.get(h.id) ?? "")}</text>`);
+    if (o.showLabels && labels) out.push(`<text x="${f(x + R + 0.8)}" y="${f(y - R + 0.2)}" font-size="${f(fontSmall * 0.85)}" font-family="helvetica" fill="#111">${esc(labels.get(h.id) ?? "")}</text>`);
   }
 
   // dimensions
@@ -271,13 +271,13 @@ export function renderPlanSvg(project: Project, analysis: ProjectAnalysis | null
         out.push(`<line x1="${f(tx(h.position.x))}" y1="${f(ty(h.position.y))}" x2="${f(tx(r.foot.x))}" y2="${f(ty(r.foot.y))}" stroke="#2563eb" stroke-width="0.25" stroke-dasharray="1 1"/>`);
         const mx = tx((h.position.x + r.foot.x) / 2);
         const my = ty((h.position.y + r.foot.y) / 2);
-        out.push(`<text x="${f(mx)}" y="${f(my)}" font-size="${f(fontSmall * 0.7)}" font-family="Helvetica" fill="#1d4ed8" text-anchor="middle">${esc(formatFeetInches(r.dist))}</text>`);
+        out.push(`<text x="${f(mx)}" y="${f(my)}" font-size="${f(fontSmall * 0.7)}" font-family="helvetica" fill="#1d4ed8" text-anchor="middle">${esc(formatFeetInches(r.dist))}</text>`);
       }
     }
   }
   for (const t of project.labels) {
     if (!visible.has(t.layer)) continue;
-    out.push(`<text x="${f(tx(t.position.x))}" y="${f(ty(t.position.y))}" font-size="${f(Math.max(3.5, t.size * s))}" font-family="Helvetica" fill="${ink ? "#111" : t.color}" transform="rotate(${t.rotation} ${f(tx(t.position.x))} ${f(ty(t.position.y))})">${esc(t.text)}</text>`);
+    out.push(`<text x="${f(tx(t.position.x))}" y="${f(ty(t.position.y))}" font-size="${f(Math.max(3.5, t.size * s))}" font-family="helvetica" fill="${ink ? "#111" : t.color}" transform="rotate(${t.rotation} ${f(tx(t.position.x))} ${f(ty(t.position.y))})">${esc(t.text)}</text>`);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${f(o.width)}" height="${f(o.height)}" viewBox="0 0 ${f(o.width)} ${f(o.height)}">${out.join("")}</svg>`;
 }
@@ -342,5 +342,5 @@ function dimensionSvg(a: Vec, b: Vec, kind: "aligned" | "horizontal" | "vertical
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
   const tick = (x: number, y: number) => `<line x1="${f(x - 1.4)}" y1="${f(y + 1.4)}" x2="${f(x + 1.4)}" y2="${f(y - 1.4)}" stroke="${c}" stroke-width="0.5"/>`;
-  return `<g><line x1="${f(tx(e1a.x))}" y1="${f(ty(e1a.y))}" x2="${f(tx(e1b.x))}" y2="${f(ty(e1b.y))}" stroke="${c}" stroke-width="0.25"/><line x1="${f(tx(e2a.x))}" y1="${f(ty(e2a.y))}" x2="${f(tx(e2b.x))}" y2="${f(ty(e2b.y))}" stroke="${c}" stroke-width="0.25"/><line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${c}" stroke-width="0.35"/>${tick(x1, y1)}${tick(x2, y2)}<text x="${f(mx)}" y="${f(my - 1.2)}" font-size="${f(fs)}" font-family="Helvetica" text-anchor="middle" fill="${c}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${esc(formatFeetInches(g.length))}</text></g>`;
+  return `<g><line x1="${f(tx(e1a.x))}" y1="${f(ty(e1a.y))}" x2="${f(tx(e1b.x))}" y2="${f(ty(e1b.y))}" stroke="${c}" stroke-width="0.25"/><line x1="${f(tx(e2a.x))}" y1="${f(ty(e2a.y))}" x2="${f(tx(e2b.x))}" y2="${f(ty(e2b.y))}" stroke="${c}" stroke-width="0.25"/><line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${c}" stroke-width="0.35"/>${tick(x1, y1)}${tick(x2, y2)}<text x="${f(mx)}" y="${f(my - 1.2)}" font-size="${f(fs)}" font-family="helvetica" text-anchor="middle" fill="${c}" transform="rotate(${f(ang)} ${f(mx)} ${f(my)})">${esc(formatFeetInches(g.length))}</text></g>`;
 }

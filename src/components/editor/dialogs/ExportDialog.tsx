@@ -66,7 +66,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
               <Select value={o.orientation} onChange={(v) => setO({ ...o, orientation: v })} options={[{ value: "landscape", label: "Landscape" }, { value: "portrait", label: "Portrait" }]} />
             </Field>
           </div>
-          <Field label="Print style">
+          <Field label="Print style" group>
             <div className="grid grid-cols-2 gap-2">
               {(
                 [

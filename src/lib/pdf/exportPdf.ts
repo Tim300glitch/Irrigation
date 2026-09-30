@@ -330,7 +330,7 @@ async function planSheet(c: Ctx, installer: boolean) {
 
   // legend + zone schedule + notes
   const lx = landscape ? c.W - c.m - Math.min(210, c.W * 0.26) + 8 : area.x;
-  let ly = landscape ? area.tbBottom + 16 : area.y + drawH + 34;
+  let ly = landscape ? area.tbBottom + 16 : area.y + drawH + 50;
   const lw = landscape ? Math.min(210, c.W * 0.26) - 16 : area.w;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);

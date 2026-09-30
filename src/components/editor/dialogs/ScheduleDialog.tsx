@@ -93,10 +93,10 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
                 <td className="px-2">{s.precipInHr.toFixed(2)}</td>
                 <td className="px-2">{s.needInWeek.toFixed(2)}</td>
                 <td className="px-2 font-semibold">{s.runtimeMinDay.toFixed(0)}</td>
-                <td className="px-2">
+                <td className="whitespace-nowrap px-2">
                   {s.cycles} × {s.cycleMin.toFixed(0)}
                 </td>
-                <td className="px-2">{s.soakMin ? `${s.soakMin} min` : "—"}</td>
+                <td className="whitespace-nowrap px-2">{s.soakMin ? `${s.soakMin} min` : "—"}</td>
                 <td className="px-2">{s.gallonsPerDay.toFixed(0)}</td>
                 <td className="px-2">{s.gallonsPerMonth.toFixed(0)}</td>
               </tr>

@@ -46,6 +46,9 @@ function screenOf(e: { clientX: number; clientY: number }, el: HTMLElement): Vec
 
 export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>, setMarquee: (m: MarqueeState | null) => void) {
   const drag = useRef<Drag | null>(null);
+  // active touch pointers for pinch-zoom (tablet / phone viewing)
+  const touches = useRef(new Map<number, Vec>());
+  const pinch = useRef<{ d: number; mid: Vec; vp: { x: number; y: number; zoom: number } } | null>(null);
   const lastClick = useRef<{ t: number; p: Vec }>({ t: 0, p: { x: 0, y: 0 } });
 
   const E = () => useEditorStore.getState();
@@ -201,6 +204,21 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
       const screen = screenOf(e, el);
       const world = toWorld(ed.viewport, screen);
       const z = ed.viewport.zoom;
+      if (e.pointerType === "touch") {
+        touches.current.set(e.pointerId, screen);
+        if (touches.current.size === 2) {
+          const [a, b] = [...touches.current.values()];
+          pinch.current = { d: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, vp: { ...ed.viewport } };
+          drag.current = null;
+          setMarquee(null);
+          return;
+        }
+        // one finger on empty canvas pans (selection still works by tapping objects)
+        if (ed.tool === "select" && !hitTest(project, world, 14 / z) && !hitHandle(getHandles(project, ed.selection, z), world, 14 / z)) {
+          drag.current = { type: "pan", sx: e.clientX, sy: e.clientY, vx: ed.viewport.x, vy: ed.viewport.y, moved: false, button: 0 };
+          return;
+        }
+      }
       // --- panning: middle / right button, Space, or Pan tool ---
       if (e.button === 1 || e.button === 2 || ed.spacePan || ed.tool === "pan") {
         drag.current = { type: "pan", sx: e.clientX, sy: e.clientY, vx: ed.viewport.x, vy: ed.viewport.y, moved: false, button: e.button };
@@ -404,6 +422,19 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
       const project = P().project;
       if (!project) return;
       const screen = screenOf(e, el);
+      if (e.pointerType === "touch" && touches.current.has(e.pointerId)) {
+        touches.current.set(e.pointerId, screen);
+        if (pinch.current && touches.current.size >= 2) {
+          const [a, b] = [...touches.current.values()];
+          const d = dist(a, b);
+          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+          const pv = pinch.current.vp;
+          const zoom = Math.max(0.4, Math.min(120, pv.zoom * (d / Math.max(pinch.current.d, 1))));
+          const anchor = { x: pinch.current.mid.x / pv.zoom + pv.x, y: pinch.current.mid.y / pv.zoom + pv.y };
+          ed.setViewport({ zoom, x: anchor.x - mid.x / zoom, y: anchor.y - mid.y / zoom });
+          return;
+        }
+      }
       const world = toWorld(ed.viewport, screen);
       const z = ed.viewport.zoom;
       const dr = drag.current;
@@ -504,6 +535,8 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
     (e: React.PointerEvent) => {
       const el = ref.current;
       const ed = E();
+      touches.current.delete(e.pointerId);
+      if (touches.current.size < 2) pinch.current = null;
       const dr = drag.current;
       drag.current = null;
       if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);

@@ -49,13 +49,21 @@ export function IconButton({ active, className, children, title, ...rest }: Butt
   );
 }
 
-export function Field({ label, hint, children, className }: { label: string; hint?: ReactNode; children: ReactNode; className?: string }) {
-  return (
-    <label className={cn("block", className)}>
+export function Field({ label, hint, children, className, group }: { label: string; hint?: ReactNode; children: ReactNode; className?: string; group?: boolean }) {
+  const inner = (
+    <>
       <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">{label}</span>
       {children}
       {hint && <span className="mt-0.5 block text-[11px] text-slate-500">{hint}</span>}
-    </label>
+    </>
+  );
+  // groups of buttons must not be wrapped in <label> (it would steal their accessible names)
+  return group ? (
+    <div role="group" aria-label={label} className={cn("block", className)}>
+      {inner}
+    </div>
+  ) : (
+    <label className={cn("block", className)}>{inner}</label>
   );
 }
 

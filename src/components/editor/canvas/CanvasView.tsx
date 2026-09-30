@@ -64,6 +64,7 @@ export function CanvasView() {
         onPointerDown={ctl.onPointerDown}
         onPointerMove={ctl.onPointerMove}
         onPointerUp={ctl.onPointerUp}
+        onPointerCancel={ctl.onPointerUp}
         onPointerLeave={() => useEditorStore.getState().setCursor(null)}
         onContextMenu={(e) => e.preventDefault()}
         data-testid="design-canvas"
