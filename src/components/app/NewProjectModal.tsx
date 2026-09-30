@@ -3,7 +3,7 @@ import { ask } from "@/components/AskHost";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Square, Ruler, Upload, FileJson, Check } from "lucide-react";
-import { Button, Field, Modal, NumberInput, Select, TextInput, cn } from "../ui";
+import { Button, Field, Modal, NumberInput, Select, TextInput, cn, LengthInput } from "../ui";
 import { createProject, makeArea, rect, uid, migrateProject } from "@/lib/model/factory";
 import type { Project, ProjectType } from "@/lib/model/types";
 import { TYPE_OPTIONS } from "../editor/dialogs/BasicDialogs";
@@ -122,10 +122,10 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
       {start === "dimensions" && (
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Field label="Lot width (street frontage)">
-            <NumberInput value={w} onChange={setW} suffix="ft" step={1} min={10} />
+            <LengthInput value={w} onChange={setW} min={10} />
           </Field>
           <Field label="Lot depth">
-            <NumberInput value={d} onChange={setD} suffix="ft" step={1} min={10} />
+            <LengthInput value={d} onChange={setD} min={10} />
           </Field>
         </div>
       )}

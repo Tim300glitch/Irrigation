@@ -71,7 +71,7 @@ export function SelectionOverlay({ project }: { project: Project }) {
         <Readout
           p={handles.find((h) => h.kind === "radius")?.p ?? single.position}
           zoom={zoom}
-          lines={[`Throw ${perf.radius.toFixed(1)}' ${perf.radius < perf.catalogRadius - 0.01 ? `(−${(perf.radiusReduction * 100).toFixed(0)}%)` : ""}`, `Arc ${Math.round(single.arc)}° · ${perf.flowGpm.toFixed(2)} GPM`]}
+          lines={[`Throw ${formatFeetInches(perf.radius)} ${perf.radius < perf.catalogRadius - 0.01 ? `(−${(perf.radiusReduction * 100).toFixed(0)}%)` : ""}`, `Arc ${Math.round(single.arc)}° · ${perf.flowGpm.toFixed(2)} GPM`]}
         />
       )}
     </g>
@@ -125,7 +125,7 @@ export function DraftOverlay({ project }: { project: Project }) {
   }
   if (tool === "calibrate" && draft.length && cur) {
     els.push(<line key="c" x1={draft[0].x} y1={draft[0].y} x2={cur.x} y2={cur.y} stroke="#dc2626" strokeWidth={2 / zoom} />);
-    els.push(<Readout key="r" p={cur} zoom={zoom} lines={["Calibrate: click the 2nd known point", `${dist(draft[0], cur).toFixed(2)} ft (current scale)`]} />);
+    els.push(<Readout key="r" p={cur} zoom={zoom} lines={["Calibrate: click the 2nd known point", `${formatFeetInches(dist(draft[0], cur))} (current scale)`]} />);
   }
   if (tool === "measure" && measure.length) {
     const mode = opts.measureMode;
@@ -135,7 +135,7 @@ export function DraftOverlay({ project }: { project: Project }) {
       els.push(<polyline key="m" points={pts(all)} fill="none" stroke={c} strokeWidth={2 / zoom} strokeDasharray={`${6 / zoom} ${3 / zoom}`} />);
       const L = polylineLength(all);
       const lastSeg = all.length >= 2 ? dist(all[all.length - 2], all[all.length - 1]) : 0;
-      els.push(<Readout key="r" p={all[all.length - 1]} zoom={zoom} lines={[`Total ${formatFeetInches(L)}`, `Segment ${formatFeetInches(lastSeg)}`, `${L.toFixed(2)} ft`]} />);
+      els.push(<Readout key="r" p={all[all.length - 1]} zoom={zoom} lines={[`Total ${formatFeetInches(L)}`, `Segment ${formatFeetInches(lastSeg)}`]} />);
     } else if (mode === "area") {
       els.push(<polygon key="m" points={pts(all)} fill={c} fillOpacity={0.12} stroke={c} strokeWidth={2 / zoom} />);
       if (all.length >= 3) els.push(<Readout key="r" p={all[all.length - 1]} zoom={zoom} lines={[`Area ${formatArea(polygonArea(all))}`, `Perimeter ${formatFeetInches(polygonPerimeter(all))}`]} />);

@@ -297,7 +297,7 @@ export function autoLayoutArea(project: Project, area: Area, opts: AutoLayoutOpt
     const rr = h.r ?? R;
     if (!product.matchedPrecip && opts.matchPrecip !== false) nozzle = bestNozzleForPrecip(product, arc, targetPr, rr);
     else nozzle = nozzleForRadius(product, rr);
-    const radiusOverride = nozzle.radius > rr + 0.05 ? +rr.toFixed(1) : undefined;
+    const radiusOverride = nozzle.radius > rr + 0.05 ? Math.round(rr * 12) / 12 : undefined;
     return {
       position: { x: +h.p.x.toFixed(3), y: +h.p.y.toFixed(3) },
       productId: product.id,

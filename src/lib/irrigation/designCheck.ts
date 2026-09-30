@@ -6,7 +6,7 @@
 import type { Project, Sprinkler } from "../model/types";
 import { centroid, dist, pointInPolygon, polylineLength, segmentIntersectsPolygon, type Vec } from "../geometry/geometry";
 import type { HydraulicResult } from "../hydraulics/analysis";
-import { pipeSizeLabel } from "../units/units";
+import { formatFeetInches, pipeSizeLabel } from "../units/units";
 import type { CoverageGrid, OversprayResult } from "./coverage";
 import { computeOverspray } from "./coverage";
 import { compass, headLabels } from "./labels";
@@ -141,7 +141,7 @@ export function runDesignCheck(project: Project, hyd: HydraulicResult, coverage:
     if (hr.status === "high")
       push({ severity: "recommendation", code: "high-pressure", title: "Pressure above optimum", message: `${lbl(h.id)} operates at ${hr.pressure?.toFixed(1)} PSI. ${cat === "spray" ? "Sprays mist above ~45 PSI — use pressure-regulated (PRS) bodies." : `Above the ${hr.perf.maxPressure} PSI maximum — add pressure regulation.`}`, targets: [h.id], location: h.position, zoneId: h.zoneId });
     if (hr.perf.radiusReduction > hr.perf.product.maxRadiusReduction + 0.01)
-      push({ severity: "warning", code: "radius-reduced", title: "Throw reduced too far", message: `${lbl(h.id)} throw is reduced ${(hr.perf.radiusReduction * 100).toFixed(0)}% (${hr.perf.catalogRadius}′ → ${hr.perf.radius.toFixed(1)}′). Reductions over ${(hr.perf.product.maxRadiusReduction * 100).toFixed(0)}% distort distribution — choose a smaller nozzle.`, targets: [h.id], location: h.position });
+      push({ severity: "warning", code: "radius-reduced", title: "Throw reduced too far", message: `${lbl(h.id)} throw is reduced ${(hr.perf.radiusReduction * 100).toFixed(0)}% (${formatFeetInches(hr.perf.catalogRadius)} → ${formatFeetInches(hr.perf.radius)}). Reductions over ${(hr.perf.product.maxRadiusReduction * 100).toFixed(0)}% distort distribution — choose a smaller nozzle.`, targets: [h.id], location: h.position });
     // inside building/hardscape
     const inStruct = project.areas.find((a) => (isStructure(a) || isHardscape(a)) && pointInPolygon(h.position, a.points));
     if (inStruct && isOverhead)
@@ -152,7 +152,7 @@ export function runDesignCheck(project: Project, hyd: HydraulicResult, coverage:
         const bad = o.areaType === "building" ? o.distanceFt > 1 : o.areaType === "property" ? o.distanceFt > 2 : o.distanceFt > 2;
         if (!bad) continue;
         const what = o.areaType === "building" ? "the building" : o.areaType === "property" ? "past the property line" : `the ${o.areaName || o.areaType}`;
-        push({ severity: o.distanceFt > 5 || o.areaType === "building" ? "warning" : "recommendation", code: "overspray", title: "Overspray", message: `Sprinkler ${lbl(h.id)} is spraying ${o.distanceFt.toFixed(0)} feet onto ${what}. Adjust the arc, reduce the radius, or relocate the head.`, targets: [h.id, o.areaId], location: h.position, zoneId: h.zoneId });
+        push({ severity: o.distanceFt > 5 || o.areaType === "building" ? "warning" : "recommendation", code: "overspray", title: "Overspray", message: `Sprinkler ${lbl(h.id)} is spraying ${formatFeetInches(o.distanceFt)} onto ${what}. Adjust the arc, reduce the radius, or relocate the head.`, targets: [h.id, o.areaId], location: h.position, zoneId: h.zoneId });
       }
     }
   }
@@ -170,10 +170,10 @@ export function runDesignCheck(project: Project, hyd: HydraulicResult, coverage:
       const b = overheads[j];
       const d = dist(a.position, b.position);
       nearest = Math.min(nearest, d);
-      if (j > i && d < 1.5) push({ severity: "warning", code: "overlap-heads", title: "Overlapping sprinklers", message: `${lbl(a.id)} and ${lbl(b.id)} are only ${d.toFixed(1)} ft apart.`, targets: [a.id, b.id], location: a.position });
+      if (j > i && d < 1.5) push({ severity: "warning", code: "overlap-heads", title: "Overlapping sprinklers", message: `${lbl(a.id)} and ${lbl(b.id)} are only ${formatFeetInches(d)} apart.`, targets: [a.id, b.id], location: a.position });
     }
     if (overheads.length > 1 && nearest > ra * 1.1)
-      push({ severity: "warning", code: "spacing", title: "Sprinkler spacing too far apart", message: `${lbl(a.id)} throws ${ra.toFixed(0)} ft but its nearest neighbour is ${nearest.toFixed(0)} ft away — no head-to-head coverage.`, targets: [a.id], location: a.position, zoneId: a.zoneId });
+      push({ severity: "warning", code: "spacing", title: "Sprinkler spacing too far apart", message: `${lbl(a.id)} throws ${formatFeetInches(ra)} but its nearest neighbour is ${formatFeetInches(nearest)} away — no head-to-head coverage.`, targets: [a.id], location: a.position, zoneId: a.zoneId });
   }
   // coverage gaps
   if (coverage) {

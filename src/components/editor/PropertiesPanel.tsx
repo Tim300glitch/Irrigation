@@ -4,7 +4,7 @@ import { useEditorStore } from "@/store/editorStore";
 import { useAnalysis } from "@/store/analysisStore";
 import type { Area, AreaType, BackflowType, DripArea, Equipment, Fitting, FittingType, LineObj, MeterSize, Pipe, PipeKind, PipeMaterial, PlantType, Project, SoilType, Sprinkler, SunExposure, TextLabel, Valve, ValveType, WaterSource, Dimension, Plant } from "@/lib/model/types";
 import { findObject } from "@/lib/editor/ops";
-import { Badge, Button, Field, NumberInput, Section, Select, Stat, TextInput, Toggle } from "../ui";
+import { Badge, Button, Field, NumberInput, Section, Select, Stat, TextInput, Toggle, LengthInput } from "../ui";
 import { allProducts, getProduct, getNozzle } from "@/lib/catalog/sprinklers";
 import { headPerformance } from "@/lib/irrigation/sprinkler";
 import { formatArea, formatFeetInches, formatFlow, formatPressure, pipeSizeLabel } from "@/lib/units/units";
@@ -122,7 +122,7 @@ function SprinklerProps({ s, project, header }: { s: Sprinkler; project: Project
       <Section title="Performance">
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Flow" value={formatFlow(perf.flowGpm)} />
-          <Stat label="Throw" value={`${perf.radius.toFixed(1)}'`} sub={perf.radiusReduction > 0.005 ? `−${(perf.radiusReduction * 100).toFixed(0)}% of ${perf.catalogRadius}'` : "catalog"} />
+          <Stat label="Throw" value={formatFeetInches(perf.radius)} sub={perf.radiusReduction > 0.005 ? `−${(perf.radiusReduction * 100).toFixed(0)}% of ${formatFeetInches(perf.catalogRadius)}` : "catalog"} />
           <Stat label="Precip" value={perf.precipInHr ? `${perf.precipInHr.toFixed(2)} in/h` : "—"} />
           <Stat label="Pressure" value={hr?.pressure !== undefined ? formatPressure(hr.pressure) : "—"} sub={`needs ${hr?.requiredPressure.toFixed(0) ?? perf.pressure} PSI`} />
           <Stat label="Range" value={`${perf.minPressure}–${perf.maxPressure}`} sub="PSI min–max" />
@@ -156,8 +156,8 @@ function SprinklerProps({ s, project, header }: { s: Sprinkler; project: Project
             </Field>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Radius (ft)">
-                <NumberInput value={s.custom?.radius} step={0.5} min={0.5} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.custom!.radius = v))} />
+              <Field label="Radius">
+                <LengthInput value={s.custom?.radius} min={0.5} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.custom!.radius = v))} />
               </Field>
               <Field label="Flow (GPM)">
                 <NumberInput value={s.custom?.flowGpm} step={0.05} min={0} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.custom!.flowGpm = v))} />
@@ -188,27 +188,27 @@ function SprinklerProps({ s, project, header }: { s: Sprinkler; project: Project
               <Wand2 size={12} /> Fit arc
             </button>
           </div>
-          <Field label="Throw distance (radius adjustment)" hint={`Catalog ${perf.catalogRadius}' · recommended minimum ${(perf.catalogRadius * (1 - product.maxRadiusReduction)).toFixed(1)}' (−${(product.maxRadiusReduction * 100).toFixed(0)}%). Drag the orange handle on the canvas to adjust.`}>
+          <Field label="Throw distance (radius adjustment)" hint={`Catalog ${formatFeetInches(perf.catalogRadius)} · recommended minimum ${formatFeetInches(perf.catalogRadius * (1 - product.maxRadiusReduction))} (−${(product.maxRadiusReduction * 100).toFixed(0)}%). Drag the orange handle on the canvas to adjust.`}>
             <div className="flex items-center gap-2">
               <input
                 type="range"
                 min={Math.max(1, perf.catalogRadius * 0.5)}
                 max={perf.catalogRadius}
-                step={0.5}
+                step={1 / 12}
                 value={perf.radius}
-                onChange={(e) => up<Sprinkler>(s.id, (o) => void (o.radiusOverride = +e.target.value >= perf.catalogRadius ? undefined : +e.target.value))}
+                onChange={(e) => up<Sprinkler>(s.id, (o) => void (o.radiusOverride = +e.target.value >= perf.catalogRadius ? undefined : Math.round(+e.target.value * 12) / 12))}
                 className="flex-1 accent-amber-500"
                 aria-label="Throw distance"
               />
-              <NumberInput className="w-20" value={+perf.radius.toFixed(1)} step={0.5} min={0.5} suffix="ft" onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.radiusOverride = v >= perf.catalogRadius ? undefined : v))} />
+              <LengthInput className="w-24" value={perf.radius} min={0.5} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.radiusOverride = v >= perf.catalogRadius ? undefined : v))} />
             </div>
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Zone">
               <Select value={s.zoneId ?? ""} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.zoneId = v || undefined))} options={[{ value: "", label: "— none —" }, ...project.zones.map((z) => ({ value: z.id, label: `Zone ${z.number} ${z.name.replace(/^Zone \d+ — /, "— ")}` }))]} />
             </Field>
-            <Field label="Elevation (ft)">
-              <NumberInput value={s.elevation} step={0.5} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.elevation = v))} />
+            <Field label="Elevation">
+              <LengthInput value={s.elevation} onChange={(v) => up<Sprinkler>(s.id, (o) => void (o.elevation = v))} />
             </Field>
           </div>
           <Field label="Label override">
@@ -240,7 +240,7 @@ function AreaProps({ a, project, header }: { a: Area; project: Project; header: 
       <Section title="Geometry">
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Area" value={formatArea(polygonArea(a.points))} />
-          <Stat label="Perimeter" value={`${polygonPerimeter(a.points).toFixed(1)}'`} />
+          <Stat label="Perimeter" value={formatFeetInches(polygonPerimeter(a.points))} />
           <Stat label="Vertices" value={a.points.length} />
         </div>
         <p className="mt-2 text-[11px] text-slate-500">Drag square handles to move vertices, drag a midpoint dot to add one, double-click a vertex to delete it.</p>
@@ -342,7 +342,7 @@ function PipeProps({ p, project, header }: { p: Pipe; project: Project; header: 
       {header(`${pipeSizeLabel(eff[0])} ${p.kind} pipe`, PIPE_SPECS[p.material].label)}
       <Section title="Hydraulics">
         <div className="grid grid-cols-3 gap-2">
-          <Stat label="Length" value={`${polylineLength(p.points).toFixed(1)}'`} sub={formatFeetInches(polylineLength(p.points))} />
+          <Stat label="Length" value={formatFeetInches(polylineLength(p.points))} />
           <Stat label="Size" value={eff.map(pipeSizeLabel).join(" / ")} sub={p.autoSize ? "auto-sized" : "manual"} />
           <Stat label="Flow" value={r ? `${r.maxFlow.toFixed(2)} GPM` : "—"} />
           <Stat label="Velocity" value={<span className={r && r.maxVelocity > maxV ? "text-red-600" : ""}>{r ? `${r.maxVelocity.toFixed(2)} ft/s` : "—"}</span>} sub={`limit ${maxV} ft/s`} />
@@ -444,8 +444,8 @@ function ValveProps({ v, project, header }: { v: Valve; project: Project; header
             <Field label="Size">
               <Select value={v.size} onChange={(x) => up<Valve>(v.id, (o) => void (o.size = x))} options={[0.75, 1, 1.5, 2].map((s) => ({ value: s, label: pipeSizeLabel(s) }))} />
             </Field>
-            <Field label="Elevation (ft)">
-              <NumberInput value={v.elevation} step={0.5} onChange={(x) => up<Valve>(v.id, (o) => void (o.elevation = x))} />
+            <Field label="Elevation">
+              <LengthInput value={v.elevation} onChange={(x) => up<Valve>(v.id, (o) => void (o.elevation = x))} />
             </Field>
           </div>
           <Field label="Assigned zone">
@@ -510,7 +510,7 @@ function SourceProps({ w, header }: { w: WaterSource; header: Header }) {
             <NumberInput allowEmpty value={w.availableGpm} suffix="GPM" step={0.5} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.availableGpm = v || undefined))} />
           </Field>
           <Field label="Elevation">
-            <NumberInput value={w.elevation} suffix="ft" step={0.5} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.elevation = v))} />
+            <LengthInput value={w.elevation} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.elevation = v))} />
           </Field>
         </div>
       </Section>
@@ -541,7 +541,7 @@ function SourceProps({ w, header }: { w: WaterSource; header: Header }) {
             <Select value={w.serviceLineSize} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.serviceLineSize = v))} options={[0.75, 1, 1.25, 1.5, 2].map((s) => ({ value: s, label: pipeSizeLabel(s) }))} />
           </Field>
           <Field label="Service length">
-            <NumberInput value={w.serviceLineLengthFt} suffix="ft" step={5} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.serviceLineLengthFt = v))} />
+            <LengthInput value={w.serviceLineLengthFt} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.serviceLineLengthFt = v))} />
           </Field>
           <Field label="Mainline size">
             <Select value={w.mainlineSize} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.mainlineSize = v))} options={[0.75, 1, 1.25, 1.5, 2].map((s) => ({ value: s, label: pipeSizeLabel(s) }))} />
@@ -573,7 +573,7 @@ function DripProps({ d, project, header }: { d: DripArea; project: Project; head
       <Section title="Drip calculation">
         <div className="grid grid-cols-3 gap-2">
           <Stat label="Area" value={formatArea(c.area)} />
-          <Stat label="Dripline" value={`${c.tubingFt.toFixed(0)} ft`} />
+          <Stat label="Dripline" value={formatFeetInches(c.tubingFt)} />
           <Stat label="Emitters" value={c.emitters} />
           <Stat label="Flow" value={`${c.flowGpm.toFixed(2)} GPM`} sub={`${(c.flowGpm * 60).toFixed(0)} GPH`} />
           <Stat label="Precip" value={`${c.precipInHr.toFixed(2)} in/h`} />
@@ -654,7 +654,7 @@ function LineProps({ l, header }: { l: LineObj; header: Header }) {
   const up = useUpdate();
   return (
     <div>
-      {header(l.name, `${l.type} · ${polylineLength(l.points).toFixed(1)} ft`)}
+      {header(l.name, `${l.type} · ${formatFeetInches(polylineLength(l.points))}`)}
       <Section title="Line">
         <div className="space-y-2">
           <Field label="Name">
@@ -678,8 +678,8 @@ function LabelProps({ t, header }: { t: TextLabel; header: Header }) {
             <TextInput value={t.text} onChange={(v) => up<TextLabel>(t.id, (o) => void (o.text = v))} />
           </Field>
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Height (ft)">
-              <NumberInput value={t.size} step={0.25} min={0.25} onChange={(v) => up<TextLabel>(t.id, (o) => void (o.size = v))} />
+            <Field label="Text height">
+              <LengthInput value={t.size} min={1 / 12} onChange={(v) => up<TextLabel>(t.id, (o) => void (o.size = v))} />
             </Field>
             <Field label="Rotation">
               <NumberInput value={t.rotation} step={15} suffix="°" onChange={(v) => up<TextLabel>(t.id, (o) => void (o.rotation = v))} />
@@ -704,8 +704,8 @@ function DimensionProps({ d, header }: { d: Dimension; header: Header }) {
           <Field label="Kind">
             <Select value={d.kind} onChange={(v) => up<Dimension>(d.id, (o) => void (o.kind = v))} options={[{ value: "aligned", label: "Aligned" }, { value: "horizontal", label: "Horizontal" }, { value: "vertical", label: "Vertical" }]} />
           </Field>
-          <Field label="Offset (ft)">
-            <NumberInput value={d.offset} step={0.5} onChange={(v) => up<Dimension>(d.id, (o) => void (o.offset = v))} />
+          <Field label="Offset">
+            <LengthInput value={d.offset} onChange={(v) => up<Dimension>(d.id, (o) => void (o.offset = v))} />
           </Field>
         </div>
       </Section>
@@ -724,7 +724,7 @@ function PlantProps({ p, header }: { p: Plant; header: Header }) {
             <TextInput value={p.name} onChange={(v) => up<Plant>(p.id, (o) => void (o.name = v))} />
           </Field>
           <Field label="Canopy radius">
-            <NumberInput value={p.canopyRadius} suffix="ft" step={0.5} min={0.5} onChange={(v) => up<Plant>(p.id, (o) => void (o.canopyRadius = v))} />
+            <LengthInput value={p.canopyRadius} min={0.5} onChange={(v) => up<Plant>(p.id, (o) => void (o.canopyRadius = v))} />
           </Field>
         </div>
       </Section>

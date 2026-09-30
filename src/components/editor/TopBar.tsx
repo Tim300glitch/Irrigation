@@ -151,9 +151,9 @@ export function TopBar() {
             <MenuItem icon={st.rulersVisible ? <Check size={14} /> : <span className="inline-block w-3.5" />} label="Show rulers (ft)" onClick={() => apply((d) => void (d.settings.rulersVisible = !d.settings.rulersVisible), { history: false })} />
             <div className="px-2 pt-2 text-[11px] text-slate-500">Grid spacing</div>
             <div className="flex flex-wrap gap-1 px-2 py-1">
-              {[0.5, 1, 2, 5, 10].map((g) => (
+              {[1 / 12, 3 / 12, 0.5, 1, 2, 5, 10].map((g) => (
                 <button key={g} onClick={() => apply((d) => void (d.settings.gridSize = g), { history: false })} className={cn("rounded px-2 py-0.5 text-xs ring-1", st.gridSize === g ? "bg-brand-600 text-white ring-brand-600" : "ring-slate-200")}>
-                  {g === 0.5 ? `6"` : `${g}'`}
+                  {g < 1 ? `${Math.round(g * 12)}"` : `${g}'`}
                 </button>
               ))}
             </div>

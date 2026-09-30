@@ -440,7 +440,7 @@ async function installerTableSheet(c: Ctx) {
     const perf = headPerformance(h);
     const loc = locate(h.position, refs);
     const z = project.zones.find((zz) => zz.id === h.zoneId);
-    return [labels.get(h.id) ?? "", z ? String(z.number) : "—", perf.product.model, perf.nozzle.name, `${Math.round(h.arc)}°`, `${perf.radius.toFixed(1)}'`, loc.d1 ? `${formatFeetInches(loc.d1.dist)} from ${loc.d1.name}` : "", loc.d2 ? `${formatFeetInches(loc.d2.dist)} from ${loc.d2.name}` : ""];
+    return [labels.get(h.id) ?? "", z ? String(z.number) : "—", perf.product.model, perf.nozzle.name, `${Math.round(h.arc)}°`, formatFeetInches(perf.radius), loc.d1 ? `${formatFeetInches(loc.d1.dist)} from ${loc.d1.name}` : "", loc.d2 ? `${formatFeetInches(loc.d2.dist)} from ${loc.d2.name}` : ""];
   });
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");

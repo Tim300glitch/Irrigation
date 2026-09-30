@@ -24,7 +24,7 @@ import { fitArc } from "@/lib/irrigation/autoLayout";
 import { isIrrigated, isNoSpray, areaAt } from "@/lib/irrigation/site";
 import { getProduct } from "@/lib/catalog/sprinklers";
 import { ZONE_COLORS } from "@/lib/irrigation/autoZone";
-import { parseLength } from "@/lib/units/units";
+import { formatFeetInches, parseLength } from "@/lib/units/units";
 import { headPerformance } from "@/lib/irrigation/sprinkler";
 
 type Drag =
@@ -107,7 +107,7 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
               if (f && f.arc >= 30) {
                 arcStart = f.start;
                 arc = Math.max(product.arcMin || 1, Math.min(360, Math.round(f.arc)));
-                if (k < 1) radiusOverride = +(nozzle.radius * k).toFixed(1);
+                if (k < 1) radiusOverride = Math.round(nozzle.radius * k * 12) / 12;
                 fitted = true;
                 break;
               }
@@ -403,7 +403,7 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
           }
           ed.setDraft([]);
           const measured = dist(next[0], next[1]);
-          ask.prompt(`Measured ${measured.toFixed(2)} ft on the background. Enter the real distance (e.g. 45' 6" or 45.5):`, measured.toFixed(1)).then((input) => {
+          ask.prompt(`Measured ${formatFeetInches(measured)} on the background. Enter the real distance (e.g. 45' 6"):`, formatFeetInches(measured)).then((input) => {
             if (!input) return;
             const real = parseLength(input);
             if (!isFinite(real) || real <= 0 || !project.background) {
@@ -418,7 +418,7 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
               bg.x = anchor.x - (anchor.x - bg.x) * k;
               bg.y = anchor.y - (anchor.y - bg.y) * k;
             });
-            ed.showToast(`Background calibrated: ${real.toFixed(2)} ft between points`, "success");
+            ed.showToast(`Background calibrated: ${formatFeetInches(real)} between points`, "success");
             ed.setTool("select");
           });
           return;
@@ -725,7 +725,8 @@ function applyHandleDrag(dr: Extract<Drag, { type: "handle" }>, world: Vec, e: R
             // radius handle: drag to adjust the throw distance (radius screw)
             const r = dist(world, s0.position);
             const perf = headPerformance(s0);
-            const snapped = e.shiftKey ? Math.round(r) : Math.round(r * 2) / 2;
+            // 1-inch increments (Shift: whole feet)
+            const snapped = e.shiftKey ? Math.round(r) : Math.round(r * 12) / 12;
             const clamped = Math.max(1, Math.min(perf.catalogRadius, snapped));
             s.radiusOverride = clamped >= perf.catalogRadius - 0.01 ? undefined : clamped;
             if (product.category === "custom" && s.custom) {
@@ -765,7 +766,7 @@ function applyHandleDrag(dr: Extract<Drag, { type: "handle" }>, world: Vec, e: R
       P.apply(
         (d) => {
           const p = d.plants.find((x) => x.id === h.objId)!;
-          p.canopyRadius = Math.max(0.5, Math.round(dist(world, p.position) * 2) / 2);
+          p.canopyRadius = Math.max(1 / 12, Math.round(dist(world, p.position) * 12) / 12);
         },
         { history: false },
       );

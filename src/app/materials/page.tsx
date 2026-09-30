@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Copy, Download, Upload, Percent } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { useAppStore } from "@/store/appStore";
-import { Button, Field, NumberInput, Select, cn } from "@/components/ui";
+import { Button, Field, NumberInput, Select, cn, LengthInput } from "@/components/ui";
 import type { MaterialProduct } from "@/lib/model/types";
 import { uid } from "@/lib/model/factory";
 import { defaultMaterialProducts, findPrice } from "@/lib/materials/pricing";
@@ -285,7 +285,7 @@ function Calculator() {
               <Select value={p.size} onChange={(v) => setPipes(pipes.map((x) => (x.id === p.id ? { ...x, size: v } : x)))} options={sizesFor(p.material).map((s) => ({ value: s, label: pipeSizeLabel(s) }))} />
             </Field>
             <Field label="Length">
-              <NumberInput value={p.length} suffix="ft" step={10} min={0} onChange={(v) => setPipes(pipes.map((x) => (x.id === p.id ? { ...x, length: v } : x)))} />
+              <LengthInput value={p.length} min={0} onChange={(v) => setPipes(pipes.map((x) => (x.id === p.id ? { ...x, length: v } : x)))} />
             </Field>
             <button className="mb-1.5 p-1 text-slate-400 hover:text-red-600" onClick={() => setPipes(pipes.filter((x) => x.id !== p.id))} aria-label="Remove pipe">
               <Trash2 size={14} />
@@ -306,7 +306,7 @@ function Calculator() {
             <NumberInput value={valves} step={1} min={0} onChange={setValves} />
           </Field>
           <Field label="Wire run">
-            <NumberInput value={wire} suffix="ft" step={10} min={0} onChange={setWire} />
+            <LengthInput value={wire} min={0} onChange={setWire} />
           </Field>
           <Field label="Pipe waste">
             <NumberInput value={waste} suffix="%" step={1} min={0} onChange={setWaste} />

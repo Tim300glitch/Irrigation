@@ -3,7 +3,7 @@ import { ask } from "@/components/AskHost";
 import { useEffect, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useEditorStore } from "@/store/editorStore";
-import { Button, Field, Modal, NumberInput, Select, TextInput, Badge } from "../../ui";
+import { Button, Field, Modal, NumberInput, Select, TextInput, Badge, LengthInput } from "../../ui";
 import type { ProjectStatus, ProjectType } from "@/lib/model/types";
 import { SHORTCUTS } from "../useShortcuts";
 import { repo, type ProjectVersion } from "@/lib/storage/repository";
@@ -11,7 +11,7 @@ import { actions } from "../actions";
 import { allProducts, getProduct } from "@/lib/catalog/sprinklers";
 import type { LayoutHeadClass } from "@/lib/irrigation/autoLayout";
 import { autoLayoutArea } from "@/lib/irrigation/autoLayout";
-import { formatArea } from "@/lib/units/units";
+import { formatArea, formatFeetInches } from "@/lib/units/units";
 import { polygonArea } from "@/lib/geometry/geometry";
 import { isIrrigated } from "@/lib/irrigation/site";
 
@@ -215,7 +215,7 @@ export function AutoDesignDialog({ onClose }: { onClose: () => void }) {
               <Select value={productId} onChange={setProductId} options={[{ value: "", label: "Default for type" }, ...products.map((p) => ({ value: p.id, label: p.model }))]} />
             </Field>
             <Field label="Spacing / radius">
-              <NumberInput allowEmpty value={radius} suffix="ft" step={1} min={4} onChange={(v) => setRadius(v || undefined)} />
+              <LengthInput allowEmpty value={radius} min={4} onChange={(v) => setRadius(v || undefined)} />
             </Field>
           </div>
           {preview && (
@@ -227,7 +227,7 @@ export function AutoDesignDialog({ onClose }: { onClose: () => void }) {
                 </span>
               </div>
               <div className="text-slate-600">
-                Narrowest width {preview.widthFt.toFixed(1)} ft · head-to-head spacing {preview.radius.toFixed(1)} ft · total flow {q.toFixed(1)} GPM
+                Narrowest width {formatFeetInches(preview.widthFt)} · head-to-head spacing {formatFeetInches(preview.radius)} · total flow {q.toFixed(1)} GPM
               </div>
               {preview.notes.map((n, i) => (
                 <div key={i} className="mt-1 text-amber-800">

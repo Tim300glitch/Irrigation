@@ -22,7 +22,7 @@ export function fitBounds(b: Bounds, size: { w: number; h: number }, pad = 40): 
 
 /** "nice" ruler/grid step in ft so that step*zoom ≥ minPx */
 export function niceStep(zoom: number, minPx: number): number {
-  const steps = [0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+  const steps = [1 / 12, 3 / 12, 0.5, 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
   for (const s of steps) if (s * zoom >= minPx) return s;
   return 1000;
 }

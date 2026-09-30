@@ -2,6 +2,7 @@
 /** Small UI primitive set (buttons, fields, modal, badges) used across the app. */
 import { clsx } from "clsx";
 import { X } from "lucide-react";
+import { formatFeetInches, parseLength } from "@/lib/units/units";
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function cn(...a: Parameters<typeof clsx>) {
@@ -133,6 +134,65 @@ export function NumberInput({ value, onChange, step = 1, min, max, suffix, class
       />
       {suffix && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">{suffix}</span>}
     </div>
+  );
+}
+
+/**
+ * Length field in feet-and-inches. Shows 12'-6", accepts 12' 6", 12'6", 12.5, 150" or 3m,
+ * and commits values rounded to the nearest inch. Arrow keys step 1 inch (Shift: 1 foot).
+ */
+export function LengthInput({ value, onChange, min, max, className, disabled, allowEmpty, id }: { value: number | undefined; onChange: (ft: number) => void; min?: number; max?: number; className?: string; disabled?: boolean; allowEmpty?: boolean; id?: string }) {
+  const show = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? "" : formatFeetInches(v));
+  const [text, setText] = useState(show(value));
+  const [focused, setFocused] = useState(false);
+  useEffect(() => {
+    if (!focused) setText(show(value));
+  }, [value, focused]); // eslint-disable-line react-hooks/exhaustive-deps
+  const norm = (v: number) => {
+    let r = Math.round(v * 12) / 12;
+    if (min !== undefined) r = Math.max(min, r);
+    if (max !== undefined) r = Math.min(max, r);
+    return r;
+  };
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="text"
+      className={cn(inputCls, "tabular", className)}
+      value={text}
+      disabled={disabled}
+      placeholder={`0'-0"`}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => {
+        setText(e.target.value);
+        const v = parseLength(e.target.value);
+        if (Number.isFinite(v) && (min === undefined || v >= min) && (max === undefined || v <= max)) onChange(norm(v));
+      }}
+      onBlur={() => {
+        setFocused(false);
+        const v = parseLength(text);
+        if (!Number.isFinite(v)) {
+          if (allowEmpty && !text.trim()) onChange(NaN);
+          setText(allowEmpty && !text.trim() ? "" : show(value));
+          return;
+        }
+        const n = norm(v);
+        if (n !== value) onChange(n);
+        setText(show(n));
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+          e.preventDefault();
+          const base = parseLength(text);
+          const step = (e.shiftKey ? 1 : 1 / 12) * (e.key === "ArrowUp" ? 1 : -1);
+          const n = norm((Number.isFinite(base) ? base : value ?? 0) + step);
+          setText(show(n));
+          onChange(n);
+        }
+      }}
+    />
   );
 }
 

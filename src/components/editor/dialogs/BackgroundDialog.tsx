@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { Upload, Search, Trash2, Ruler, Loader2, Square } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
 import { useEditorStore } from "@/store/editorStore";
-import { Button, Field, Modal, NumberInput, TextInput, Toggle } from "../../ui";
+import { Button, Field, Modal, NumberInput, TextInput, Toggle, LengthInput } from "../../ui";
 import { esriProvider, type GeocodeResult } from "@/lib/maps/provider";
 import { makeArea, rect } from "@/lib/model/factory";
 import { actions } from "../actions";
@@ -121,10 +121,10 @@ export function BackgroundDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Lot width">
-                <NumberInput value={lotW} suffix="ft" step={1} min={10} onChange={setLotW} />
+                <LengthInput value={lotW} min={10} onChange={setLotW} />
               </Field>
               <Field label="Lot depth">
-                <NumberInput value={lotD} suffix="ft" step={1} min={10} onChange={setLotD} />
+                <LengthInput value={lotD} min={10} onChange={setLotD} />
               </Field>
             </div>
             <Button
@@ -147,7 +147,7 @@ export function BackgroundDialog({ onClose }: { onClose: () => void }) {
             </div>
             <p className="mb-2 text-[11.5px] text-slate-500">PNG, JPG or PDF (first page). After import, click two points of a known distance to calibrate the scale.</p>
             <Field label="Approximate image width (before calibration)">
-              <NumberInput value={assumeWidth} suffix="ft" step={10} min={10} onChange={setAssumeWidth} />
+              <LengthInput value={assumeWidth} min={10} onChange={setAssumeWidth} />
             </Field>
             <input ref={fileRef} type="file" accept="image/png,image/jpeg,application/pdf" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
             <Button variant="primary" className="mt-2 w-full" onClick={() => fileRef.current?.click()} disabled={busy}>
@@ -168,10 +168,10 @@ export function BackgroundDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Field label="Capture width">
-                <NumberInput value={areaW} suffix="ft" step={10} min={40} max={600} onChange={setAreaW} />
+                <LengthInput value={areaW} min={40} max={600} onChange={setAreaW} />
               </Field>
               <Field label="Capture height">
-                <NumberInput value={areaH} suffix="ft" step={10} min={40} max={600} onChange={setAreaH} />
+                <LengthInput value={areaH} min={40} max={600} onChange={setAreaH} />
               </Field>
             </div>
             <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">

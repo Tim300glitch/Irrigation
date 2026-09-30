@@ -13,6 +13,7 @@ import { PIPE_STYLE } from "@/lib/plan/symbols";
 import type { CoverageGrid } from "@/lib/irrigation/coverage";
 import { polygonArea } from "@/lib/geometry/geometry";
 import { locate, referenceLines } from "@/lib/plan/references";
+import { formatFeetInches } from "@/lib/units/units";
 
 const RULER = 22;
 const PIPE_ORDER = ["sleeve", "lateral", "drip", "mainline", "wire"];
@@ -257,14 +258,15 @@ function Rulers({ width, height }: { width: number; height: number }) {
   const vp = useEditorStore((s) => s.viewport);
   const cursor = useEditorStore((s) => s.cursor);
   const step = niceStep(vp.zoom, 56);
-  const minor = step / (step >= 10 ? 5 : step >= 2 ? 2 : 2);
+  const minor = step < 1 ? step / (step <= 1 / 12 ? 1 : 3) : step === 1 ? 1 / 4 : step / (step >= 10 ? 5 : 2);
   const ticksX: React.ReactNode[] = [];
   const ticksY: React.ReactNode[] = [];
   const x0 = Math.floor(vp.x / minor) * minor;
   const x1 = vp.x + width / vp.zoom;
-  for (let v = x0; v <= x1; v += minor) {
+  for (let i = Math.floor(x0 / minor); i * minor <= x1; i++) {
+    const v = i * minor;
     const sx = (v - vp.x) * vp.zoom;
-    const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6;
+    const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-4;
     ticksX.push(<line key={`x${v.toFixed(3)}`} x1={sx} y1={isMajor ? 8 : 15} x2={sx} y2={RULER} stroke="#64748b" strokeWidth={isMajor ? 1 : 0.6} />);
     if (isMajor)
       ticksX.push(
@@ -275,9 +277,10 @@ function Rulers({ width, height }: { width: number; height: number }) {
   }
   const y0 = Math.floor(vp.y / minor) * minor;
   const y1 = vp.y + height / vp.zoom;
-  for (let v = y0; v <= y1; v += minor) {
+  for (let i = Math.floor(y0 / minor); i * minor <= y1; i++) {
+    const v = i * minor;
     const sy = (v - vp.y) * vp.zoom;
-    const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-6;
+    const isMajor = Math.abs(v / step - Math.round(v / step)) < 1e-4;
     ticksY.push(<line key={`y${v.toFixed(3)}`} y1={sy} x1={isMajor ? 8 : 15} y2={sy} x2={RULER} stroke="#64748b" strokeWidth={isMajor ? 1 : 0.6} />);
     if (isMajor)
       ticksY.push(
@@ -311,8 +314,9 @@ function Rulers({ width, height }: { width: number; height: number }) {
 }
 
 function fmt(v: number) {
-  const r = Math.round(v * 100) / 100;
-  return `${Number.isInteger(r) ? r : r.toFixed(1)}'`;
+  const inches = Math.round(v * 12);
+  if (inches % 12 === 0) return `${inches / 12}'`;
+  return formatFeetInches(v);
 }
 
 function CanvasHud() {
