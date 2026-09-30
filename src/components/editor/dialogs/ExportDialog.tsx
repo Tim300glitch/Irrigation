@@ -1,4 +1,5 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
 import { useState } from "react";
 import { FileDown, Loader2 } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
@@ -32,10 +33,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       const { exportPdf } = await import("@/lib/pdf/exportPdf");
       const blob = await exportPdf(project, analysis, o);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `${project.meta.name.replace(/[^\w\- ]+/g, "")} - ${o.mode === "ink" ? "ink-saver" : "irrigation plan"} (${o.paper}).pdf`;
-      a.click();
+      saveFile(blob, `${project.meta.name.replace(/[^\w\- ]+/g, "")} - ${o.mode === "ink" ? "ink-saver" : "irrigation plan"} (${o.paper}).pdf`);
       logActivity(`Plan exported (${PAPER[o.paper].label}, ${o.mode === "ink" ? "ink-saver" : "full color"})`, project.id, project.meta.name);
     } catch (e) {
       setError(String(e));

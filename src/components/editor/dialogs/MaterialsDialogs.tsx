@@ -1,4 +1,5 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
 import { useState } from "react";
 import { Plus, Trash2, RotateCcw, Download, FileDown } from "lucide-react";
 import { useProjectStore } from "@/store/projectStore";
@@ -12,10 +13,7 @@ import type { CostItem } from "@/lib/model/types";
 
 function downloadCsv(name: string, rows: (string | number)[][]) {
   const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  a.download = name;
-  a.click();
+  saveFile(new Blob([csv], { type: "text/csv" }), name);
 }
 
 export function MaterialsDialog({ onClose }: { onClose: () => void }) {

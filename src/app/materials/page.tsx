@@ -1,4 +1,7 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
+import { searchParams } from "@/lib/nav";
+import { ask } from "@/components/AskHost";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Copy, Download, Upload, Percent } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -14,7 +17,7 @@ import { stationsFor } from "@/lib/materials/takeoff";
 export default function MaterialsPage() {
   const [tab, setTab] = useState<"pricing" | "calculator">("pricing");
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "calculator") setTab("calculator");
+    if (searchParams().get("tab") === "calculator") setTab("calculator");
   }, []);
   return (
     <AppShell title="Materials">
@@ -60,10 +63,7 @@ function Pricing() {
   const exportCsv = () => {
     const head = ["id", "brand", "sku", "category", "description", "pipeSize", "unit", "price", "supplier", "notes", "matchKey"];
     const csv = [head.join(","), ...rows.map((r) => head.map((h) => `"${String((r as unknown as Record<string, unknown>)[h] ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "deltaline-prices.csv";
-    a.click();
+    saveFile(new Blob([csv], { type: "text/csv" }), "deltaline-prices.csv");
   };
   const importCsv = async (f: File) => {
     const text = await f.text();
@@ -101,7 +101,7 @@ function Pricing() {
     }
     setRows(next);
     setDirty(true);
-    alert(`${n} rows imported — review and click Save prices.`);
+    ask.alert(`${n} rows imported. Review them and click Save prices.`);
   };
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -211,7 +211,7 @@ function Pricing() {
         <span>
           {list.length} of {rows.length} products. The takeoff key links a product to calculated items (a trailing <code>:*</code> matches any size/nozzle).
         </span>
-        <button className="text-brand-700 hover:underline" onClick={() => confirm("Reset the price database to defaults?") && (setRows(defaultMaterialProducts()), setDirty(true))}>
+        <button className="text-brand-700 hover:underline" onClick={async () => (await ask.confirm("Reset the price database to defaults?")) && (setRows(defaultMaterialProducts()), setDirty(true))}>
           Reset to defaults
         </button>
       </div>

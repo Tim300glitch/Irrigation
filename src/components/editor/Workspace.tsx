@@ -1,4 +1,6 @@
 "use client";
+import { searchParams } from "@/lib/nav";
+import { AskHost } from "@/components/AskHost";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useProjectStore } from "@/store/projectStore";
@@ -49,7 +51,7 @@ export function Workspace({ projectId }: { projectId: string }) {
       // responsive: collapse side panels on narrow screens
       if (typeof window !== "undefined" && window.innerWidth < 1100) useEditorStore.setState({ leftCollapsed: true, rightCollapsed: window.innerWidth < 800 });
       requestAnimationFrame(() => setTimeout(() => actions.fit(), 30));
-      if (new URLSearchParams(window.location.search).get("start") === "upload") useEditorStore.setState({ dialog: "background" });
+      if (searchParams().get("start") === "upload") useEditorStore.setState({ dialog: "background" });
     })();
     return () => {
       cancelled = true;
@@ -110,6 +112,7 @@ export function Workspace({ projectId }: { projectId: string }) {
       </div>
       <StatusBar />
       <Dialogs />
+      <AskHost />
     </div>
   );
 }

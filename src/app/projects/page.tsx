@@ -1,4 +1,5 @@
 "use client";
+import { searchParams } from "@/lib/nav";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, List, Copy } from "lucide-react";
@@ -25,7 +26,7 @@ function Projects() {
   const [sort, setSort] = useState<"updated" | "created" | "name" | "value">("updated");
   const [view, setView] = useState<"table" | "cards">("table");
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
+    const p = searchParams();
     setQ(p.get("q") ?? "");
     const st = p.get("status");
     if (st) setStatus(st as ProjectStatus);

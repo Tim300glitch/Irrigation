@@ -6,6 +6,7 @@
  * Panning is always available: middle-mouse drag, right-mouse drag, Space+drag,
  * wheel zoom, arrow keys — and in-progress drawings (e.g. a pipe run) are kept.
  */
+import { ask } from "@/components/AskHost";
 import { useCallback, useRef } from "react";
 import type React from "react";
 import { useEditorStore, type SnapResult } from "@/store/editorStore";
@@ -162,14 +163,16 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         return;
       }
       case "text": {
-        const text = window.prompt("Label text", "Label");
-        if (!text) return;
-        const id = uid("lbl");
-        P().apply((d) => {
-          d.labels.push({ id, position: p, text, size: Math.max(1, 14 / ed.viewport.zoom), rotation: 0, color: "#0f172a", layer: "labels" });
+        const size = Math.max(1, 14 / ed.viewport.zoom);
+        ask.prompt("Label text", "Label").then((text) => {
+          if (!text) return;
+          const id = uid("lbl");
+          P().apply((d) => {
+            d.labels.push({ id, position: p, text, size, rotation: 0, color: "#0f172a", layer: "labels" });
+          });
+          ed.select([id]);
+          ed.setTool("select");
         });
-        ed.select([id]);
-        ed.setTool("select");
         return;
       }
       case "fitting": {
@@ -400,23 +403,24 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
           }
           ed.setDraft([]);
           const measured = dist(next[0], next[1]);
-          const input = window.prompt(`Measured ${measured.toFixed(2)} ft on the background. Enter the real distance (e.g. 45' 6" or 45.5):`, measured.toFixed(1));
-          if (!input) return;
-          const real = parseLength(input);
-          if (!isFinite(real) || real <= 0 || !project.background) {
-            ed.showToast("Invalid distance", "warn");
-            return;
-          }
-          const k = real / measured;
-          const anchor = next[0];
-          P().apply((d) => {
-            const bg = d.background!;
-            bg.ftPerPx *= k;
-            bg.x = anchor.x - (anchor.x - bg.x) * k;
-            bg.y = anchor.y - (anchor.y - bg.y) * k;
+          ask.prompt(`Measured ${measured.toFixed(2)} ft on the background. Enter the real distance (e.g. 45' 6" or 45.5):`, measured.toFixed(1)).then((input) => {
+            if (!input) return;
+            const real = parseLength(input);
+            if (!isFinite(real) || real <= 0 || !project.background) {
+              ed.showToast("Enter a distance such as 45' 6\" or 45.5", "warn");
+              return;
+            }
+            const k = real / measured;
+            const anchor = next[0];
+            P().apply((d) => {
+              const bg = d.background!;
+              bg.ftPerPx *= k;
+              bg.x = anchor.x - (anchor.x - bg.x) * k;
+              bg.y = anchor.y - (anchor.y - bg.y) * k;
+            });
+            ed.showToast(`Background calibrated: ${real.toFixed(2)} ft between points`, "success");
+            ed.setTool("select");
           });
-          ed.showToast(`Background calibrated: ${real.toFixed(2)} ft between points`, "success");
-          ed.setTool("select");
           return;
         }
         default:

@@ -1,4 +1,5 @@
 "use client";
+import { ask } from "@/components/AskHost";
 import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -109,7 +110,7 @@ function Estimates() {
                 <td className="tabular px-2 text-right font-semibold">{formatCurrency0(simpleEstimate(q.items, q.laborHours, q.laborRate, q.taxPct, q.markupPct).total)}</td>
                 <td className="px-2 text-[12px] text-slate-500">{relTime(q.updatedAt)}</td>
                 <td className="px-4 text-right">
-                  <button onClick={() => confirm(`Delete "${q.name}"?`) && setQuick(quick.filter((x) => x.id !== q.id))} className="rounded p-1 text-slate-400 hover:text-red-600" aria-label="Delete">
+                  <button onClick={async () => (await ask.confirm(`Delete "${q.name}"?`, true)) && setQuick(quick.filter((x) => x.id !== q.id))} className="rounded p-1 text-slate-400 hover:text-red-600" aria-label="Delete">
                     <Trash2 size={14} />
                   </button>
                 </td>

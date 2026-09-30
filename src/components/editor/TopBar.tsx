@@ -1,4 +1,5 @@
 "use client";
+import { ask } from "@/components/AskHost";
 import Link from "next/link";
 import {
   MousePointer2,
@@ -257,8 +258,8 @@ export function TopBar() {
               icon={<Wand2 size={14} />}
               label={<span className="font-semibold">Auto design everything</span>}
               hint="layout → zone → route"
-              onClick={() => {
-                if (project.sprinklers.length && !confirm("Auto design replaces zones and pipes (existing heads are kept). Continue?")) return;
+              onClick={async () => {
+                if (project.sprinklers.length && !(await ask.confirm("Auto design replaces zones and pipes (existing heads are kept). Continue?"))) return;
                 actions.autoDesignAll();
                 close();
               }}

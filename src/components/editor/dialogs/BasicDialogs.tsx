@@ -1,4 +1,5 @@
 "use client";
+import { ask } from "@/components/AskHost";
 import { useEffect, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useEditorStore } from "@/store/editorStore";
@@ -130,7 +131,7 @@ export function VersionsDialog({ onClose }: { onClose: () => void }) {
               size="sm"
               onClick={async () => {
                 const p = await repo.getVersion(project.id, v.at);
-                if (!p || !confirm(`Restore "${v.label}"? The current design stays in undo history.`)) return;
+                if (!p || !(await ask.confirm(`Restore "${v.label}"? The current design stays in undo history.`))) return;
                 useProjectStore.getState().replace(p);
                 onClose();
               }}

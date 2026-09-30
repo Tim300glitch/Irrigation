@@ -1,4 +1,5 @@
 "use client";
+import { searchParams } from "@/lib/nav";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2, Printer, Save } from "lucide-react";
@@ -37,7 +38,7 @@ function QuickEstimateEditor() {
   const [q, setQ] = useState<QuickEstimate | null>(null);
   const [pick, setPick] = useState("");
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
+    const p = searchParams();
     const id = p.get("id");
     const existing = id ? quick.find((x) => x.id === id) : undefined;
     if (existing) setQ(structuredClone(existing));

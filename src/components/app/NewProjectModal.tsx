@@ -1,4 +1,5 @@
 "use client";
+import { ask } from "@/components/AskHost";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Square, Ruler, Upload, FileJson, Check } from "lucide-react";
@@ -144,7 +145,7 @@ export function NewProjectModal({ open, onClose }: { open: boolean; onClose: () 
                 setImported(p);
                 if (!name) setName(p.meta.name);
               } catch (err) {
-                alert(`Could not import: ${String(err)}`);
+                ask.alert(`Could not import this file: ${String(err)}`);
               }
             }}
           />

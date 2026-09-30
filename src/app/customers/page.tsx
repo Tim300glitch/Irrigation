@@ -1,4 +1,6 @@
 "use client";
+import { searchParams } from "@/lib/nav";
+import { ask } from "@/components/AskHost";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Save } from "lucide-react";
@@ -26,7 +28,7 @@ function Customers() {
   const [sel, setSel] = useState<Customer | null>(null);
   const [q, setQ] = useState("");
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("new") === "1") setSel({ id: uid("cus"), name: "", email: "", phone: "", address: "", notes: "", createdAt: new Date().toISOString() });
+    if (searchParams().get("new") === "1") setSel({ id: uid("cus"), name: "", email: "", phone: "", address: "", notes: "", createdAt: new Date().toISOString() });
   }, []);
   const list = customers.filter((c) => !q || `${c.name} ${c.address} ${c.email}`.toLowerCase().includes(q.toLowerCase()));
   const projectsFor = (c: Customer) => summaries.filter((s) => s.client === c.name);
@@ -104,7 +106,7 @@ function Customers() {
                 <Button
                   variant="danger"
                   onClick={async () => {
-                    if (!confirm(`Delete ${sel.name}?`)) return;
+                    if (!(await ask.confirm(`Delete ${sel.name}?`, true))) return;
                     await setCustomers(customers.filter((c) => c.id !== sel.id));
                     setSel(null);
                   }}

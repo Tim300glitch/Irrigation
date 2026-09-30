@@ -1,4 +1,6 @@
 "use client";
+import { searchParams } from "@/lib/nav";
+import { AskHost } from "@/components/AskHost";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -37,7 +39,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
     init();
   }, [init]);
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") setNewOpen(true);
+    if (searchParams().get("new") === "1") setNewOpen(true);
   }, [pathname, setNewOpen]);
   const issues = summaries.filter((s) => s.errorCount > 0 || s.hydraulicIssueCount > 0);
   const initials = profile.designer
@@ -150,6 +152,7 @@ export function AppShell({ children, title, actions }: { children: ReactNode; ti
         <main className="min-h-0 flex-1 overflow-y-auto">{ready ? children : <div className="flex h-full items-center justify-center text-slate-500">Loading…</div>}</main>
       </div>
       <NewProjectModal open={newOpen} onClose={() => setNewOpen(false)} />
+      <AskHost />
       <button onClick={() => setNewOpen(true)} className="fixed bottom-5 right-5 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-white shadow-lg sm:hidden" aria-label="New project">
         <Plus size={22} />
       </button>

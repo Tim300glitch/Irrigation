@@ -10,7 +10,9 @@ import { actions } from "../actions";
 
 async function pdfToImage(file: File): Promise<{ dataUrl: string; w: number; h: number }> {
   const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
+  // the single-file build provides an inlined worker as a blob URL
+  const inlined = (globalThis as { __PDF_WORKER_SRC__?: string }).__PDF_WORKER_SRC__;
+  pdfjs.GlobalWorkerOptions.workerSrc = inlined ?? new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
   const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const page = await doc.getPage(1);
   const vp = page.getViewport({ scale: 2 });

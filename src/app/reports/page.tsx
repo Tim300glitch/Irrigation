@@ -1,4 +1,5 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
 import { Download } from "lucide-react";
 import { AppShell, STATUS_META } from "@/components/app/AppShell";
 import { useAppStore } from "@/store/appStore";
@@ -19,10 +20,7 @@ export default function ReportsPage() {
     const head = ["Project", "Customer", "Address", "Status", "Type", "Zones", "Heads", "Irrigated sq ft", "Estimate", "Errors", "Warnings", "Created", "Updated"];
     const rows = summaries.map((s) => [s.name, s.client, s.address, STATUS_META[s.status].label, s.projectType, s.zoneCount, s.headCount, Math.round(s.irrigatedArea), s.estimateTotal.toFixed(2), s.errorCount, s.warningCount, s.createdAt.slice(0, 10), s.updatedAt.slice(0, 10)]);
     const csv = [head, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "deltaline-projects-report.csv";
-    a.click();
+    saveFile(new Blob([csv], { type: "text/csv" }), "deltaline-projects-report.csv");
   };
   return (
     <AppShell title="Reports">

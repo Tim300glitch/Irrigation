@@ -1,4 +1,6 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
+import { ask } from "@/components/AskHost";
 import { useEffect, useState } from "react";
 import { Save, Download, Upload, RotateCcw } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
@@ -20,21 +22,18 @@ export default function SettingsPage() {
     const summaries = await repo.listSummaries();
     const projects = (await Promise.all(summaries.map((s) => repo.getProject(s.id)))).filter(Boolean);
     const data = { version: 1, exportedAt: new Date().toISOString(), profile: await repo.getProfile(), projects, customers: await repo.getList("customers"), products: await repo.getList("products"), quickEstimates: await repo.getList("quickEstimates") };
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
-    a.download = `deltaline-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
+    saveFile(new Blob([JSON.stringify(data)], { type: "application/json" }), `deltaline-backup-${new Date().toISOString().slice(0, 10)}.json`);
   };
   const importAll = async (f: File) => {
     const data = JSON.parse(await f.text());
-    if (!Array.isArray(data.projects)) return alert("Not a DeltaLine backup file");
+    if (!Array.isArray(data.projects)) return ask.alert("This file is not a DeltaLine backup.");
     for (const pr of data.projects as Project[]) await persistProject(migrateProject(pr));
     if (data.customers) await repo.setList("customers", data.customers);
     if (data.products) await repo.setList("products", data.products);
     if (data.quickEstimates) await repo.setList("quickEstimates", data.quickEstimates);
     if (data.profile) await repo.setProfile(data.profile);
     await useAppStore.getState().refresh();
-    alert(`Restored ${data.projects.length} projects.`);
+    ask.alert(`Restored ${data.projects.length} projects.`);
   };
   return (
     <AppShell title="Settings">
@@ -102,7 +101,7 @@ export default function SettingsPage() {
             <Button
               variant="danger"
               onClick={async () => {
-                if (!confirm("Reset all local data and reload the demo projects?")) return;
+                if (!(await ask.confirm("Reset all local data and reload the demo projects?", true))) return;
                 const summaries = await repo.listSummaries();
                 for (const s of summaries) await repo.deleteProject(s.id);
                 await repo.setFlag("seeded-v1", false);

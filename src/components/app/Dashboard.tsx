@@ -1,4 +1,6 @@
 "use client";
+import { saveFile } from "@/lib/saveFile";
+import { ask } from "@/components/AskHost";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -34,7 +36,7 @@ export async function duplicateProject(id: string) {
 }
 
 export async function deleteProject(id: string, name: string) {
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  if (!(await ask.confirm(`Delete "${name}"? This cannot be undone.`, true))) return;
   await repo.deleteProject(id);
   await useAppStore.getState().refresh();
 }
@@ -81,10 +83,7 @@ export function ProjectActions({ s }: { s: ProjectSummary }) {
             onClick={async () => {
               const p = await repo.getProject(s.id);
               if (!p) return;
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(new Blob([JSON.stringify(p)], { type: "application/json" }));
-              a.download = `${p.meta.name}.deltaline.json`;
-              a.click();
+              saveFile(new Blob([JSON.stringify(p)], { type: "application/json" }), `${p.meta.name}.deltaline.json`);
               close();
             }}
           />
