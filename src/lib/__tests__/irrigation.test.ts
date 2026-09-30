@@ -192,3 +192,23 @@ describe("demo project", () => {
     expect(a.estimate.total).toBeGreaterThan(1000);
   });
 });
+
+describe("deleting valves", () => {
+  test("removes the valve's zone, renumbers zones and drops it from materials", async () => {
+    const { deleteObjects } = await import("../editor/ops");
+    const p = createProject();
+    for (let i = 1; i <= 3; i++) {
+      p.valves.push({ id: `v${i}`, type: "electric", position: { x: i * 2, y: 0 }, size: 1, name: `V${i}`, elevation: 0, layer: "valves" });
+      p.zones.push({ id: `z${i}`, number: i, name: `Zone ${i}`, color: "#000", valveId: `v${i}`, plantType: "cool-turf", sun: "full", soil: "loam", slopePct: 0, schedule: { daysPerWeek: 3 } });
+    }
+    p.sprinklers.push({ id: "h", position: { x: 0, y: 5 }, productId: "gen-rotor-4", nozzleId: "3.0", arcStart: 0, arc: 90, zoneId: "z2", elevation: 0, layer: "sprinklers" });
+    deleteObjects(p, ["v2"]);
+    expect(p.zones.map((z) => [z.number, z.name, z.valveId])).toEqual([[1, "Zone 1", "v1"], [2, "Zone 2", "v3"]]);
+    expect(p.valves.map((v) => v.name)).toEqual(["V1", "V2"]);
+    expect(p.sprinklers[0].zoneId).toBeUndefined();
+    deleteObjects(p, ["v1", "v3"]);
+    expect(p.zones).toHaveLength(0);
+    const t = computeTakeoff(p, analyzeHydraulics(p));
+    expect(t.some((i) => i.key.startsWith("valve:") || i.key.includes("controller"))).toBe(false);
+  });
+});

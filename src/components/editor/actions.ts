@@ -31,7 +31,8 @@ export const actions = {
     });
     if (!ids.length) return;
     P().apply((d) => deleteObjects(d as Project, ids));
-    ed.select([]);
+    const zones = P().project?.zones ?? [];
+    ed.set({ selection: [], highlight: [], activeZoneId: zones.some((z) => z.id === ed.activeZoneId) ? ed.activeZoneId : null });
   },
   copy() {
     const project = P().project;

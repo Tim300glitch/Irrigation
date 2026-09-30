@@ -106,11 +106,35 @@ export function scaleObjects(d: Project, ids: string[], sx: number, sy: number, 
 
 export function deleteObjects(d: Project, ids: string[]) {
   const set = new Set(ids);
+  const removedValves = new Set(d.valves.filter((v) => set.has(v.id)).map((v) => v.id));
   for (const c of OBJECT_COLLECTIONS) (d[c] as AnyObject[]) = (d[c] as AnyObject[]).filter((o) => !set.has(o.id));
-  // clean references
+  // a zone is controlled by its valve: deleting the valve removes the zone
+  const removedZones = new Set(d.zones.filter((z) => z.valveId && removedValves.has(z.valveId)).map((z) => z.id));
+  if (removedZones.size) {
+    d.zones = d.zones.filter((z) => !removedZones.has(z.id));
+    for (const s of d.sprinklers) if (s.zoneId && removedZones.has(s.zoneId)) s.zoneId = undefined;
+    for (const dr of d.drips) if (dr.zoneId && removedZones.has(dr.zoneId)) dr.zoneId = undefined;
+    for (const p of d.pipes) if (p.zoneId && removedZones.has(p.zoneId)) p.zoneId = undefined;
+  }
   for (const z of d.zones) if (z.valveId && set.has(z.valveId)) z.valveId = undefined;
   for (const m of d.manifolds) m.valveIds = m.valveIds.filter((v) => !set.has(v));
   d.manifolds = d.manifolds.filter((m) => m.valveIds.length > 0);
+  if (removedValves.size) renumberZonesAndValves(d);
+}
+
+/** Zones numbered 1..n in their current order; default names ("Zone 3", "V3") follow the numbers. */
+export function renumberZonesAndValves(d: Project) {
+  const zones = [...d.zones].sort((a, b) => a.number - b.number);
+  zones.forEach((z, i) => {
+    z.number = i + 1;
+    z.name = z.name.replace(/^Zone \d+/, `Zone ${i + 1}`);
+  });
+  // controllable valves: those with zones first (in zone order), then the rest
+  const ctrl = d.valves.filter((v) => v.type === "electric" || v.type === "drip");
+  const zoneOf = (id: string) => zones.find((z) => z.valveId === id)?.number ?? 999;
+  [...ctrl].sort((a, b) => zoneOf(a.id) - zoneOf(b.id)).forEach((v, i) => {
+    if (!v.name || /^V\d+$/.test(v.name)) v.name = `V${i + 1}`;
+  });
 }
 
 /** Deep-copies objects with new ids, offset by (dx,dy); returns new ids. */
