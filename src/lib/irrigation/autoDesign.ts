@@ -176,7 +176,8 @@ export function autoDesignAll(project: Project, layoutOpts: AutoLayoutOptions = 
   const notes: string[] = [];
   if (!p.waterSources.length) {
     const b = p.areas.find((a) => a.type === "building");
-    const pos: Vec = b ? add(b.points[0], { x: -2, y: -2 }) : { x: 0, y: 0 };
+    // POC on the outside of the house wall (hose-bib location)
+    const pos: Vec = b ? offsetPolygon(b.points, -1.5)[0] : { x: 0, y: 0 };
     p = produce(p, (d) => {
       d.waterSources.push({ id: uid("poc"), name: "POC-1", position: pos, staticPsi: 65, meterSize: "3/4", serviceLineSize: 1, serviceLineLengthFt: 50, serviceLineMaterial: "pvc-sch40", mainlineSize: 1, elevation: 0, backflow: "pvb", backflowSize: 1, layer: "mainline" });
     });

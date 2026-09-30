@@ -8,6 +8,7 @@ import type { Project, ProjectMeta } from "./types";
 import { createProject, makeArea, makeWaterSource, rect, uid, LINE_DEFAULTS } from "./factory";
 import { autoDesignAll } from "../irrigation/autoDesign";
 import type { Vec } from "../geometry/geometry";
+import { stationsFor } from "../materials/takeoff";
 
 function base(meta: Partial<ProjectMeta>): Project {
   return createProject({ designer: "Alex Rivera", company: "DeltaLine Irrigation", phone: "(951) 555-0142", email: "design@deltaline.example", ...meta });
@@ -89,6 +90,7 @@ function fromSpec(s: Spec): Project {
   const r = autoDesignAll(p, { headClass: "auto" });
   const t = new Date(Date.now() - s.daysAgo * 86400000).toISOString();
   return produce(r.project, (d) => {
+    for (const e of d.equipment) if (e.type.includes("controller")) e.stations = stationsFor(d.zones.length);
     d.updatedAt = t;
     d.createdAt = new Date(Date.now() - (s.daysAgo + 12) * 86400000).toISOString();
   });

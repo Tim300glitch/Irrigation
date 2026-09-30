@@ -2,15 +2,15 @@
  * Coverage analysis: heatmap, head-to-head classification, and overspray.
  *
  * MODEL / ASSUMPTIONS
- *  Each head's application-rate profile is modelled as a triangular (linearly
- *  decreasing) profile — a common idealisation of rotor and spray catch-can
- *  profiles:
- *        p(d) = 3 × PR_avg × (1 − d/r),   PR_avg = 96.25 × Q × (360/arc) / (π r²)
+ *  Each head's application-rate profile is modelled as a parabolic profile that is
+ *  flat near the head and falls to zero at full throw — an idealisation of typical
+ *  rotor/spray catch-can curves:
+ *        p(d) = 2 × PR_avg × (1 − (d/r)²),   PR_avg = 96.25 × Q × (360/arc) / (π r²)
  *  which integrates exactly to the head's flow over its wetted sector.
  *  A point is classified:
  *    - INSUFFICIENT  reached by fewer than two heads (no head-to-head) or modelled
- *                    rate < 60% of the median rate of the irrigated area
- *    - EXCESSIVE     modelled rate > 180% of the median rate
+ *                    rate < 50% of the median rate of the irrigated area
+ *    - EXCESSIVE     modelled rate > 200% of the median rate
  *    - ACCEPTABLE    otherwise
  *  The modelled lower-quarter distribution uniformity (DU_lq) is a planning
  *  indicator only, not a field catch-can audit result.
@@ -53,7 +53,8 @@ export function headRateAt(perf: HeadPerformance, h: Sprinkler, p: Vec): number 
     if (a > h.arc + 1e-6) return 0;
   }
   const prAvg = (PR_CONSTANT * perf.flowGpm * (360 / h.arc)) / (Math.PI * r * r);
-  return 3 * prAvg * (1 - d / r);
+  const x = d / r;
+  return 2 * prAvg * (1 - x * x);
 }
 
 /** Target region: lawn areas + beds that contain spray-type heads, minus hardscape/structures & drip areas */
@@ -134,10 +135,10 @@ export function computeCoverage(project: Project, stepOverride?: number): Covera
     if (!mask[k]) continue;
     tot++;
     if (count[k] === 0) dry++;
-    if (count[k] < 2 || rate[k] < 0.6 * median) {
+    if (count[k] < 2 || rate[k] < 0.5 * median) {
       cls[k] = 1;
       ins++;
-    } else if (rate[k] > 1.8 * median) {
+    } else if (rate[k] > 2.0 * median) {
       cls[k] = 3;
       exc++;
     } else {

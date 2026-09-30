@@ -198,7 +198,7 @@ export function runDesignCheck(project: Project, hyd: HydraulicResult, coverage:
       });
     }
     if (coverage.stats.excessivePct > 12)
-      push({ severity: "recommendation", code: "excess-overlap", title: "Excessive overlap", message: `${coverage.stats.excessivePct.toFixed(0)}% of the irrigated area receives more than 180% of the median application rate. Check nozzle sizing and spacing.`, targets: [] });
+      push({ severity: "recommendation", code: "excess-overlap", title: "Excessive overlap", message: `${coverage.stats.excessivePct.toFixed(0)}% of the irrigated area receives more than 200% of the median application rate. Check nozzle sizing and spacing.`, targets: [] });
   }
 
   // ---------- Pipes ----------

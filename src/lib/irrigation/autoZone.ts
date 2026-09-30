@@ -9,11 +9,11 @@
  *    from the heads farthest from the valve location, with balanced flow.
  */
 import type { PlantType, Project, SunExposure, SoilType, Valve, Zone } from "../model/types";
-import { add, centroid, dist, scale, type Vec } from "../geometry/geometry";
+import { add, centroid, dist, pointInPolygon, scale, type Vec } from "../geometry/geometry";
 import { availableFlow } from "../hydraulics/analysis";
 import { headPerformance, precipClass, type PrecipClass } from "./sprinkler";
 import { dripCalc } from "./drip";
-import { areaAt, isIrrigated } from "./site";
+import { areaAt, isIrrigated, isNoSpray } from "./site";
 
 export const ZONE_COLORS = ["#2563eb", "#dc2626", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#ca8a04", "#db2777", "#4f46e5", "#65a30d", "#0d9488", "#b45309"];
 
@@ -74,7 +74,8 @@ export function autoZone(project: Project, opts: AutoZoneOptions = {}, idGen: ()
     items.push({ id: d.id, areaId: area?.id, p: c, q: dripCalc(d).flowGpm, cls: "drip", plant: area?.plantType ?? "shrubs", sun: area?.sun ?? "full", soil: area?.soil ?? "loam", slope: area?.slopePct ?? 0 });
   }
   const src = project.waterSources[0];
-  const hub = opts.manifoldPosition ?? existingManifoldPos(project) ?? (src ? add(src.position, { x: 3, y: 3 }) : centroidOf(items.map((i) => i.p)));
+  const target = centroidOf(items.map((i) => i.p));
+  const hub = opts.manifoldPosition ?? existingManifoldPos(project) ?? (src ? manifoldSpot(project, src.position, target) : target);
 
   // areas large enough to justify their own valve(s) are zoned separately so a zone
   // never jumps between e.g. the front and back yards
@@ -114,6 +115,7 @@ export function autoZone(project: Project, opts: AutoZoneOptions = {}, idGen: ()
   const valves: Valve[] = [];
   const assignments = new Map<string, string>();
   const layout = opts.valveLayout ?? project.settings.valveLayout;
+  const rowDir = manifoldRowDir(project, hub, Math.min(6, clusters.length));
   clusters.forEach((cl, idx) => {
     const zid = idGen();
     const vid = idGen();
@@ -122,7 +124,7 @@ export function autoZone(project: Project, opts: AutoZoneOptions = {}, idGen: ()
     const isDrip = first.cls === "drip";
     let vpos: Vec;
     if (layout === "grouped") {
-      vpos = add(hub, { x: (idx % 6) * 1.5, y: Math.floor(idx / 6) * 2 });
+      vpos = add(hub, { x: rowDir.x * (idx % 6) * 1.5 + rowDir.y * Math.floor(idx / 6) * 2, y: rowDir.y * (idx % 6) * 1.5 + rowDir.x * Math.floor(idx / 6) * 2 });
     } else {
       // distributed: valve at the cluster edge closest to the hub
       const c = centroidOf(cl.items.map((i) => i.p));
@@ -204,6 +206,32 @@ function labelFor(it: Item): string {
 function centroidOf(ps: Vec[]): Vec {
   if (!ps.length) return { x: 0, y: 0 };
   return scale(ps.reduce((a, p) => add(a, p), { x: 0, y: 0 }), 1 / ps.length);
+}
+
+const blockedAt = (project: Project, p: Vec) => project.areas.some((a) => (isNoSpray(a) || a.type === "pool") && pointInPolygon(p, a.points));
+const onProperty = (project: Project, p: Vec) => {
+  const prop = project.areas.find((a) => a.type === "property");
+  return !prop || pointInPolygon(p, prop.points);
+};
+
+/** A valve-manifold location near the POC that is outside buildings/hardscape. */
+function manifoldSpot(project: Project, src: Vec, toward: Vec): Vec {
+  const cands: Vec[] = [];
+  for (const r of [3, 4.5, 6, 8, 11]) for (let a = 0; a < 360; a += 30) cands.push(add(src, { x: r * Math.cos((a * Math.PI) / 180), y: r * Math.sin((a * Math.PI) / 180) }));
+  const ok = cands.filter((c) => !blockedAt(project, c) && onProperty(project, c));
+  if (!ok.length) return add(src, { x: 3, y: 3 });
+  // prefer close to the POC and on the side facing the irrigated areas
+  ok.sort((a, b) => dist(a, src) + 0.15 * dist(a, toward) - (dist(b, src) + 0.15 * dist(b, toward)));
+  return ok[0];
+}
+
+function manifoldRowDir(project: Project, hub: Vec, n: number): Vec {
+  for (const d of [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }]) {
+    let fine = true;
+    for (let i = 0; i < n; i++) if (blockedAt(project, add(hub, { x: d.x * i * 1.5, y: d.y * i * 1.5 }))) fine = false;
+    if (fine) return d;
+  }
+  return { x: 1, y: 0 };
 }
 
 function existingManifoldPos(project: Project): Vec | undefined {

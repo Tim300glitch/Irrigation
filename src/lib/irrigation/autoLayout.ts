@@ -80,7 +80,7 @@ const DEFAULT_PRODUCT: Record<Exclude<LayoutHeadClass, "auto">, string> = {
   rotary: "gen-rotary-prs",
 };
 
-const MAX_RADIUS: Record<Exclude<LayoutHeadClass, "auto">, number> = { rotor: 40, spray: 15, rotary: 28 };
+const MAX_RADIUS: Record<Exclude<LayoutHeadClass, "auto">, number> = { rotor: 36, spray: 15, rotary: 28 };
 const MIN_RADIUS: Record<Exclude<LayoutHeadClass, "auto">, number> = { rotor: 30, spray: 5, rotary: 9 };
 
 export function autoLayoutArea(project: Project, area: Area, opts: AutoLayoutOptions): AutoLayoutResult {
@@ -102,7 +102,7 @@ export function autoLayoutArea(project: Project, area: Area, opts: AutoLayoutOpt
   let R = opts.radius;
   if (!R) {
     const maxR = Math.min(MAX_RADIUS[headClass], Math.max(...product.nozzles.map((n) => n.radius)));
-    const spans = Math.max(1, Math.ceil(width / maxR - 0.05));
+    const spans = Math.max(1, Math.round(width / maxR));
     R = Math.max(MIN_RADIUS[headClass], Math.min(maxR, width / spans));
     if (headClass === "rotor" && width < MIN_RADIUS.rotor) notes.push("Area is narrow for rotors — consider rotary nozzles or sprays.");
   }
@@ -288,10 +288,8 @@ export function autoLayoutArea(project: Project, area: Area, opts: AutoLayoutOpt
   // Matched precipitation: for rotor-type heads the smallest nozzle that reaches R is
   // used on the smallest arc; larger arcs get proportionally larger nozzles.
   const fullNozzle = nozzleForRadius(product, R);
-  const minArc = Math.min(...heads.map((h) => h.arc), 360);
-  const targetPr = product.matchedPrecip
-    ? precipitationRate(headFlow(product, fullNozzle, 360), 360, R)
-    : precipitationRate(headFlow(product, fullNozzle, minArc), Math.max(minArc, 45), R);
+  // reference: the smallest nozzle reaching R on a standard 90° corner head
+  const targetPr = product.matchedPrecip ? precipitationRate(headFlow(product, fullNozzle, 360), 360, R) : precipitationRate(headFlow(product, fullNozzle, 90), 90, R);
   const out: Omit<Sprinkler, "id">[] = heads.map((h) => {
     let arc = Math.round(Math.max(product.arcMin || 1, Math.min(product.arcMax, h.arc)));
     if (!product.arcAdjustable) arc = product.arcMax;
@@ -368,7 +366,8 @@ function addBoundaryHeads(poly: Vec[], S: number, inset: number, out: Candidate[
     const a = poly[i];
     const b = poly[(i + 1) % n];
     const L = dist(a, b);
-    const segs = Math.max(1, Math.ceil(L / S - 0.02));
+    // an edge barely longer than the spacing is covered by its corner heads
+    const segs = L <= S * 1.15 ? 1 : Math.max(1, Math.ceil(L / S - 0.02));
     const dir = norm(sub(b, a));
     const inward = outward ? { x: dir.y, y: -dir.x } : { x: -dir.y, y: dir.x };
     const startAng = outward ? angleOf(scale(dir, -1)) : angleOf(dir);

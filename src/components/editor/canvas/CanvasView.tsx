@@ -241,7 +241,7 @@ function HeatmapImage({ grid }: { grid: CoverageGrid }) {
       else if (cls === 1) col = [239, 68, 68, 150];
       else if (cls === 3) col = [79, 70, 229, 150];
       else {
-        const t = Math.min(1, Math.max(0, (rel - 0.6) / 1.2));
+        const t = Math.min(1, Math.max(0, (rel - 0.5) / 1.5));
         col = [34 + t * 20, 197 - t * 60, 94 + t * 60, 125];
       }
       img.data.set(col, k * 4);

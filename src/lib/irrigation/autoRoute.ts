@@ -55,7 +55,8 @@ function makeCtx(project: Project): Ctx {
 }
 
 function blocked(ctx: Ctx, a: Vec, b: Vec) {
-  return ctx.structures.some((poly) => segmentIntersectsPolygon(a, b, poly));
+  // a structure that contains an endpoint (e.g. a controller on a garage wall) does not block
+  return ctx.structures.some((poly) => !pointInPolygon(a, poly) && !pointInPolygon(b, poly) && segmentIntersectsPolygon(a, b, poly));
 }
 
 /** shortest obstacle-avoiding path (visibility graph + Dijkstra) */
