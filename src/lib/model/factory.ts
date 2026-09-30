@@ -12,6 +12,12 @@ import type {
   WaterSource,
 } from "./types";
 import type { Vec } from "../geometry/geometry";
+import { setAutoFreeze } from "immer";
+
+// Project documents are treated as immutable by convention (all edits go through
+// immer recipes), but objects loaded/seeded are occasionally patched in place
+// before first use, so immer's deep freeze is disabled.
+setAutoFreeze(false);
 
 export const SCHEMA_VERSION = 1;
 
