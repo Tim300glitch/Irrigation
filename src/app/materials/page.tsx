@@ -183,7 +183,7 @@ function Pricing() {
                   <Cell value={p.unit} onChange={(v) => up(p.id, { unit: v })} w="w-12" />
                 </td>
                 <td className="px-1">
-                  <input type="number" step="0.01" className="tabular h-7 w-20 rounded border border-slate-200 px-1 text-right" value={p.price} onChange={(e) => up(p.id, { price: parseFloat(e.target.value) || 0 })} />
+                  <NumberInput className="w-24" inputClassName="h-7 text-right" value={p.price} step={0.01} min={0} onChange={(v) => up(p.id, { price: v })} />
                 </td>
                 <td className="px-1">
                   <Cell value={p.supplier} onChange={(v) => up(p.id, { supplier: v })} w="w-24" />

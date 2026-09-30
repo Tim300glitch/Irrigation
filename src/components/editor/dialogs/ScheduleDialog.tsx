@@ -124,10 +124,10 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
               <Select value={cmp.currentController} onChange={(v) => apply((d) => void (d.comparison.currentController = v))} options={[{ value: "timer", label: "Timer" }, { value: "smart", label: "Smart" }]} />
             </Field>
             <Field label="Measured GPM">
-              <NumberInput value={cmp.currentGpm} step={0.5} min={0} onChange={(v) => apply((d) => void (d.comparison.currentGpm = v || undefined))} />
+              <NumberInput allowEmpty value={cmp.currentGpm} step={0.5} min={0} onChange={(v) => apply((d) => void (d.comparison.currentGpm = v || undefined))} />
             </Field>
             <Field label="Min / week">
-              <NumberInput value={cmp.currentRuntimeMinPerWeek} step={5} min={0} onChange={(v) => apply((d) => void (d.comparison.currentRuntimeMinPerWeek = v || undefined))} />
+              <NumberInput allowEmpty value={cmp.currentRuntimeMinPerWeek} step={5} min={0} onChange={(v) => apply((d) => void (d.comparison.currentRuntimeMinPerWeek = v || undefined))} />
             </Field>
             <Field label="Smart savings" className="col-span-2">
               <NumberInput value={cmp.smartControllerSavingsPct} suffix="%" step={1} min={0} max={50} onChange={(v) => apply((d) => void (d.comparison.smartControllerSavingsPct = v))} />

@@ -462,7 +462,7 @@ function ValveProps({ v, project, header }: { v: Valve; project: Project; header
             />
           </Field>
           <Field label="Loss override (PSI)" hint="Leave blank to use the generic loss curve; enter the manufacturer value at design flow.">
-            <NumberInput value={v.lossOverridePsi} step={0.1} min={0} onChange={(x) => up<Valve>(v.id, (o) => void (o.lossOverridePsi = x || undefined))} />
+            <NumberInput allowEmpty value={v.lossOverridePsi} step={0.1} min={0} onChange={(x) => up<Valve>(v.id, (o) => void (o.lossOverridePsi = x || undefined))} />
           </Field>
         </div>
       </Section>
@@ -504,10 +504,10 @@ function SourceProps({ w, header }: { w: WaterSource; header: Header }) {
             <NumberInput value={w.staticPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.staticPsi = v))} />
           </Field>
           <Field label="Dynamic (measured)">
-            <NumberInput value={w.dynamicPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.dynamicPsi = v || undefined))} />
+            <NumberInput allowEmpty value={w.dynamicPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.dynamicPsi = v || undefined))} />
           </Field>
           <Field label="Available flow" hint="blank = test/estimate">
-            <NumberInput value={w.availableGpm} suffix="GPM" step={0.5} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.availableGpm = v || undefined))} />
+            <NumberInput allowEmpty value={w.availableGpm} suffix="GPM" step={0.5} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.availableGpm = v || undefined))} />
           </Field>
           <Field label="Elevation">
             <NumberInput value={w.elevation} suffix="ft" step={0.5} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.elevation = v))} />
@@ -553,10 +553,10 @@ function SourceProps({ w, header }: { w: WaterSource; header: Header }) {
             <Select value={w.backflowSize} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.backflowSize = v))} options={[0.75, 1, 1.5, 2].map((s) => ({ value: s, label: pipeSizeLabel(s) }))} />
           </Field>
           <Field label="PRV setting">
-            <NumberInput value={w.prvSettingPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.prvSettingPsi = v || undefined))} />
+            <NumberInput allowEmpty value={w.prvSettingPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.prvSettingPsi = v || undefined))} />
           </Field>
           <Field label="Pump boost">
-            <NumberInput value={w.pumpBoostPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.pumpBoostPsi = v || undefined))} />
+            <NumberInput allowEmpty value={w.pumpBoostPsi} suffix="PSI" step={1} min={0} onChange={(v) => up<WaterSource>(w.id, (o) => void (o.pumpBoostPsi = v || undefined))} />
           </Field>
         </div>
       </Section>

@@ -215,7 +215,7 @@ export function AutoDesignDialog({ onClose }: { onClose: () => void }) {
               <Select value={productId} onChange={setProductId} options={[{ value: "", label: "Default for type" }, ...products.map((p) => ({ value: p.id, label: p.model }))]} />
             </Field>
             <Field label="Spacing / radius">
-              <NumberInput value={radius} suffix="ft" step={1} min={4} onChange={(v) => setRadius(v || undefined)} />
+              <NumberInput allowEmpty value={radius} suffix="ft" step={1} min={4} onChange={(v) => setRadius(v || undefined)} />
             </Field>
           </div>
           {preview && (

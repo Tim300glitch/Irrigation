@@ -2,7 +2,7 @@
 /** Small UI primitive set (buttons, fields, modal, badges) used across the app. */
 import { clsx } from "clsx";
 import { X } from "lucide-react";
-import { useEffect, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function cn(...a: Parameters<typeof clsx>) {
   return clsx(...a);
@@ -69,20 +69,66 @@ export function Field({ label, hint, children, className, group }: { label: stri
 
 export const inputCls = "h-8 w-full rounded-md border border-slate-300 bg-white px-2 text-[13px] text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100";
 
-export function NumberInput({ value, onChange, step = 1, min, max, suffix, className, disabled }: { value: number | undefined; onChange: (v: number) => void; step?: number; min?: number; max?: number; suffix?: string; className?: string; disabled?: boolean }) {
+const fmtNum = (v: number | undefined) => (v === undefined || Number.isNaN(v) ? "" : String(+v.toFixed(4)));
+
+/**
+ * Numeric field that keeps what the user is typing (including an empty box or a
+ * trailing "." / "-") and only commits valid numbers. Leaving the field empty
+ * restores the last value — or clears it when `allowEmpty` is set.
+ */
+export function NumberInput({ value, onChange, step = 1, min, max, suffix, className, disabled, allowEmpty, inputClassName, id }: { value: number | undefined; onChange: (v: number) => void; step?: number; min?: number; max?: number; suffix?: string; className?: string; disabled?: boolean; allowEmpty?: boolean; inputClassName?: string; id?: string }) {
+  const [text, setText] = useState(fmtNum(value));
+  const [focused, setFocused] = useState(false);
+  // follow outside changes while the user is not typing
+  useEffect(() => {
+    if (!focused) setText(fmtNum(value));
+  }, [value, focused]);
+  const clamp = (v: number) => {
+    if (min !== undefined) v = Math.max(min, v);
+    if (max !== undefined) v = Math.min(max, v);
+    return v;
+  };
   return (
     <div className={cn("relative", className)}>
       <input
-        type="number"
-        className={cn(inputCls, suffix && "pr-10", "tabular")}
-        value={value === undefined || Number.isNaN(value) ? "" : +value.toFixed(4)}
-        step={step}
-        min={min}
-        max={max}
+        id={id}
+        type="text"
+        inputMode="decimal"
+        className={cn(inputCls, suffix && "pr-10", "tabular", inputClassName)}
+        value={text}
         disabled={disabled}
+        onFocus={() => setFocused(true)}
         onChange={(e) => {
-          const v = parseFloat(e.target.value);
-          if (!Number.isNaN(v)) onChange(min !== undefined ? Math.max(min, max !== undefined ? Math.min(max, v) : v) : v);
+          const t = e.target.value;
+          if (!/^-?\d*\.?\d*$/.test(t)) return;
+          setText(t);
+          const v = parseFloat(t);
+          if (!Number.isNaN(v) && (min === undefined || v >= min) && (max === undefined || v <= max)) onChange(v);
+        }}
+        onBlur={() => {
+          setFocused(false);
+          const v = parseFloat(text);
+          if (Number.isNaN(v)) {
+            if (allowEmpty) {
+              onChange(NaN);
+              setText("");
+            } else setText(fmtNum(value));
+            return;
+          }
+          const c = clamp(v);
+          if (c !== value) onChange(c);
+          setText(fmtNum(c));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+            const base = parseFloat(text);
+            const c = clamp((Number.isNaN(base) ? 0 : base) + (e.key === "ArrowUp" ? step : -step));
+            const r = +c.toFixed(4);
+            setText(fmtNum(r));
+            onChange(r);
+          }
         }}
       />
       {suffix && <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-500">{suffix}</span>}
