@@ -13,7 +13,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { useAnalysisStore } from "@/store/analysisStore";
 import type { Project, Sprinkler, Pipe } from "@/lib/model/types";
 import { makeArea, uid, LINE_DEFAULTS, makeWaterSource } from "@/lib/model/factory";
-import { add, angleOf, closestOnPolyline, dist, fromAngle, normAngle, pointInPolygon, sub, type Vec } from "@/lib/geometry/geometry";
+import { add, angleOf, closestOnPolyline, dist, distToPolygonEdge, fromAngle, normAngle, pointInPolygon, sub, type Vec } from "@/lib/geometry/geometry";
 import { findObject, moveObjects, rotateObjects, scaleObjects, selectionBounds, isLocked } from "@/lib/editor/ops";
 import { hitTest, marqueeHits } from "./hitTest";
 import { snapPoint } from "./snapping";
@@ -90,20 +90,28 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         const nozzle = product.nozzles.find((n) => n.id === o.sprinklerNozzle) ?? product.nozzles[0];
         let arcStart = 0;
         let arc = product.arcAdjustable ? o.sprinklerArc : product.arcMax;
-        if (o.sprinklerAutoArc && product.category !== "emitter" && product.category !== "bubbler") {
-          const area = areaAt(project, p, isIrrigated);
+        let radiusOverride: number | undefined;
+        if (o.sprinklerAutoArc && product.category !== "emitter" && product.category !== "bubbler" && product.arcAdjustable) {
+          // the area under the cursor, or the one whose edge the head was snapped onto
+          const area = areaAt(project, p, isIrrigated) ?? project.areas.filter(isIrrigated).find((a) => distToPolygonEdge(p, a.points) < 1.5);
           if (area) {
             const noSpray = project.areas.filter(isNoSpray).map((a) => a.points);
             const irrigated = project.areas.filter(isIrrigated).map((a) => a.points);
-            const wettable = (q: Vec) => !noSpray.some((n) => pointInPolygon(q, n)) && irrigated.some((i) => pointInPolygon(q, i));
-            const f = fitArc(p, nozzle.radius, wettable);
-            if (f && product.arcAdjustable) {
-              arcStart = f.start;
-              arc = Math.max(product.arcMin || 1, Math.min(360, Math.round(f.arc)));
+            // points on the area boundary count as wettable (heads sit on the edge)
+            const wettable = (q: Vec) => !noSpray.some((n) => pointInPolygon(q, n)) && irrigated.some((i) => pointInPolygon(q, i) || distToPolygonEdge(q, i) < 0.3);
+            // try the catalog throw first, then up to the product's radius reduction
+            for (const k of [1, 0.9, 0.8, 1 - product.maxRadiusReduction]) {
+              const f = fitArc(p, nozzle.radius * k, wettable);
+              if (f && f.arc >= 30) {
+                arcStart = f.start;
+                arc = Math.max(product.arcMin || 1, Math.min(360, Math.round(f.arc)));
+                if (k < 1) radiusOverride = +(nozzle.radius * k).toFixed(1);
+                break;
+              }
             }
           }
         }
-        const s: Sprinkler = { id: uid("spk"), position: p, productId: product.id, nozzleId: nozzle.id, arcStart, arc, elevation: 0, layer: "sprinklers", zoneId: ed.activeZoneId ?? undefined };
+        const s: Sprinkler = { id: uid("spk"), position: p, productId: product.id, nozzleId: nozzle.id, arcStart, arc, radiusOverride, elevation: 0, layer: "sprinklers", zoneId: ed.activeZoneId ?? undefined };
         P().apply((d) => {
           d.sprinklers.push(s);
         });
@@ -319,7 +327,8 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         case "pipe": {
           const last = ed.draft[ed.draft.length - 1];
           const s = snapFor(world, e, undefined, last);
-          if (isDouble) {
+          // double-click ends the run (a click right after an auto-finished run starts a new one)
+          if (isDouble && last && dist(last, s.point) < 0.05) {
             ed.setDraft([]);
             return;
           }
