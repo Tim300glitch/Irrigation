@@ -100,15 +100,18 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
             // points on the area boundary count as wettable (heads sit on the edge)
             const wettable = (q: Vec) => !noSpray.some((n) => pointInPolygon(q, n)) && irrigated.some((i) => pointInPolygon(q, i) || distToPolygonEdge(q, i) < 0.3);
             // try the catalog throw first, then up to the product's radius reduction
+            let fitted = false;
             for (const k of [1, 0.9, 0.8, 1 - product.maxRadiusReduction]) {
               const f = fitArc(p, nozzle.radius * k, wettable);
               if (f && f.arc >= 30) {
                 arcStart = f.start;
                 arc = Math.max(product.arcMin || 1, Math.min(360, Math.round(f.arc)));
                 if (k < 1) radiusOverride = +(nozzle.radius * k).toFixed(1);
+                fitted = true;
                 break;
               }
             }
+            if (!fitted) ed.showToast(`${nozzle.name} nozzle throws ${nozzle.radius}' — too far for this spot. Choose a smaller nozzle or head type.`, "warn");
           }
         }
         const s: Sprinkler = { id: uid("spk"), position: p, productId: product.id, nozzleId: nozzle.id, arcStart, arc, radiusOverride, elevation: 0, layer: "sprinklers", zoneId: ed.activeZoneId ?? undefined };
