@@ -2,7 +2,9 @@
 import { searchParams } from "@/lib/nav";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Printer, Save } from "lucide-react";
+import { Plus, Trash2, FileDown, Save } from "lucide-react";
+import { saveFile } from "@/lib/saveFile";
+import { quickEstimatePdf } from "@/lib/pdf/quickEstimatePdf";
 import { AppShell } from "@/components/app/AppShell";
 import { useAppStore } from "@/store/appStore";
 import { Button, Field, NumberInput, Select, TextInput } from "@/components/ui";
@@ -64,8 +66,8 @@ function QuickEstimateEditor() {
       <div className="mb-4 flex flex-wrap items-center gap-2 print:hidden">
         <h2 className="text-lg font-semibold">{q.kind === "repair" ? "Repair quote" : "Quick estimate"}</h2>
         <div className="ml-auto flex gap-2">
-          <Button onClick={() => window.print()}>
-            <Printer size={14} /> Print / PDF
+          <Button onClick={() => saveFile(quickEstimatePdf(q, profile), `${q.name.replace(/[^\w\- ]+/g, "")}.pdf`)}>
+            <FileDown size={14} /> Download PDF
           </Button>
           <Button variant="primary" onClick={save}>
             <Save size={14} /> Save estimate

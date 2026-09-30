@@ -33,6 +33,7 @@ export const SHORTCUTS: { keys: string; action: string }[] = [
   { keys: "Ctrl/⌘ + D", action: "Duplicate" },
   { keys: "Ctrl/⌘ + A", action: "Select all" },
   { keys: "Ctrl/⌘ + S", action: "Save" },
+  { keys: "Ctrl/⌘ + P", action: "Export PDF plan set" },
   { keys: "Shift (drawing)", action: "Constrain to 45° angles" },
   { keys: "Alt (drawing)", action: "Disable snapping" },
   { keys: "?", action: "Show this help" },
@@ -63,6 +64,7 @@ export function useShortcuts(finishDraft: () => void) {
         else if (k === "d") actions.duplicate();
         else if (k === "a") actions.selectAll();
         else if (k === "s") actions.save();
+        else if (k === "p") ed.set({ dialog: "export" });
         else return;
         e.preventDefault();
         return;

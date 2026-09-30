@@ -40,7 +40,27 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 @media print {
-  .no-print {
+  .no-print,
+  aside,
+  header,
+  footer,
+  button,
+  [role="toolbar"],
+  [role="dialog"] {
     display: none !important;
+  }
+  html,
+  body,
+  main,
+  .h-screen {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  select,
+  input {
+    appearance: none !important;
+    border-color: transparent !important;
+    background: transparent !important;
   }
 }
