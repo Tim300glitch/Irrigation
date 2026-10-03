@@ -80,7 +80,7 @@ export function TopBar() {
   const selArea = project.areas.find((a) => selection.includes(a.id) && (a.type === "lawn" || a.type === "bed" || a.type === "planting"));
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-2">
-      <Link href="/" className="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-100" title="Back to dashboard">
+      <Link href="/projects" className="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 hover:bg-slate-100" title="Back to Design Studio">
         <span className="hidden min-[1700px]:block"><Logo /></span>
         <span className="min-[1700px]:hidden"><Logo compact /></span>
       </Link>

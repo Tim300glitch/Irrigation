@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: #eef7fb;
   --color-brand-100: #d5ecf5;
@@ -11,6 +13,19 @@
   --color-brand-700: #0d5176;
   --color-brand-800: #0f4361;
   --color-brand-900: #0f3850;
+  --color-surface: #ffffff;
+  --color-canvas: #f5f7f9;
+  --color-ink: #0f172a;
+  --color-ink-fg: #ffffff;
+  /* categorical series palette (validated, fixed order) */
+  --color-s1: #2a78d6;
+  --color-s2: #eb6834;
+  --color-s3: #1baf7a;
+  --color-s4: #eda100;
+  --color-s5: #e87ba4;
+  --color-s6: #008300;
+  --color-s7: #4a3aa7;
+  --color-s8: #e34948;
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -18,11 +33,88 @@
   color-scheme: light;
 }
 
+/* Dark mode: the neutral scale is inverted and tints are re-stepped for a dark
+   surface, so every screen (including the Design Studio) follows the theme. */
+.dark {
+  color-scheme: dark;
+  --color-surface: #111925;
+  --color-canvas: #0b111a;
+  --color-ink: #e8edf4;
+  --color-ink-fg: #0b111a;
+  --color-slate-50: #0f1620;
+  --color-slate-100: #18212e;
+  --color-slate-200: #243041;
+  --color-slate-300: #334156;
+  --color-slate-400: #5b6b84;
+  --color-slate-500: #8593a9;
+  --color-slate-600: #a5b0c2;
+  --color-slate-700: #c3cbd8;
+  --color-slate-800: #dbe1ea;
+  --color-slate-900: #eef1f6;
+  --color-slate-950: #f8fafc;
+  --color-brand-50: color-mix(in oklab, #1a7aa6 18%, #111925);
+  --color-brand-100: color-mix(in oklab, #1a7aa6 28%, #111925);
+  --color-brand-200: color-mix(in oklab, #1a7aa6 45%, #111925);
+  --color-brand-700: #5db6de;
+  --color-brand-800: #8dcbe8;
+  --color-brand-900: #b9dff0;
+  --color-s1: #3987e5;
+  --color-s2: #d95926;
+  --color-s3: #199e70;
+  --color-s4: #c98500;
+  --color-s5: #d55181;
+  --color-s7: #9085e9;
+  --color-s8: #e66767;
+}
+.dark {
+  --color-emerald-50: color-mix(in oklab, #10b981 14%, #111925);
+  --color-emerald-100: color-mix(in oklab, #10b981 22%, #111925);
+  --color-emerald-200: color-mix(in oklab, #10b981 34%, #111925);
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-amber-50: color-mix(in oklab, #f59e0b 14%, #111925);
+  --color-amber-100: color-mix(in oklab, #f59e0b 22%, #111925);
+  --color-amber-200: color-mix(in oklab, #f59e0b 34%, #111925);
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-red-50: color-mix(in oklab, #ef4444 14%, #111925);
+  --color-red-100: color-mix(in oklab, #ef4444 22%, #111925);
+  --color-red-200: color-mix(in oklab, #ef4444 34%, #111925);
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-sky-50: color-mix(in oklab, #0ea5e9 14%, #111925);
+  --color-sky-200: color-mix(in oklab, #0ea5e9 34%, #111925);
+  --color-sky-700: #7dd3fc;
+  --color-violet-50: color-mix(in oklab, #8b5cf6 16%, #111925);
+  --color-violet-200: color-mix(in oklab, #8b5cf6 36%, #111925);
+  --color-violet-700: #c4b5fd;
+  --color-orange-50: color-mix(in oklab, #f97316 14%, #111925);
+  --color-orange-200: color-mix(in oklab, #f97316 34%, #111925);
+  --color-orange-700: #fdba74;
+  --color-teal-50: color-mix(in oklab, #14b8a6 14%, #111925);
+  --color-teal-200: color-mix(in oklab, #14b8a6 34%, #111925);
+  --color-teal-700: #5eead4;
+  --color-blue-50: color-mix(in oklab, #3b82f6 14%, #111925);
+  --color-blue-200: color-mix(in oklab, #3b82f6 34%, #111925);
+  --color-blue-700: #93c5fd;
+}
+.dark .bg-white,
+.dark .hover\:bg-white:hover {
+  background-color: var(--color-surface);
+}
+.dark .bg-white\/90,
+.dark .bg-white\/80 {
+  background-color: color-mix(in oklab, var(--color-surface) 88%, transparent);
+}
+.dark * {
+  scrollbar-color: #334156 transparent;
+}
+
 html,
 body {
   height: 100%;
-  background: #f5f7f9;
-  color: #0f172a;
+  background: var(--color-canvas);
+  color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -64,3 +156,25 @@ input[type="number"]::-webkit-inner-spin-button {
     background: transparent !important;
   }
 }
+
+/* CRM motion & helpers */
+@keyframes crm-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes crm-slide {
+  from { transform: translateX(24px); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+.animate-in { animation: crm-in 0.16s ease-out; }
+.animate-slide { animation: crm-slide 0.18s ease-out; }
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Printable documents (estimates, invoices, audits, maps): only #print-root prints */
+@media print {
+  body.printing > *:not(#print-root) { display: none !important; }
+  #print-root { display: block !important; position: static !important; }
+  #print-root * { color-adjust: exact; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+#print-root { display: none; }

@@ -1,11 +1,11 @@
 "use client";
-import { AppShell } from "@/components/app/AppShell";
-import { Dashboard } from "@/components/app/Dashboard";
+import { CrmShell } from "@/components/crm/Shell";
+import { Dashboard } from "@/components/crm/pages/Dashboard";
 
 export default function Home() {
   return (
-    <AppShell title="Home">
+    <CrmShell title="Dashboard">
       <Dashboard />
-    </AppShell>
+    </CrmShell>
   );
 }

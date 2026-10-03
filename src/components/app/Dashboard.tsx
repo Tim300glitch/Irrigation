@@ -208,7 +208,7 @@ export function Dashboard({ onNew }: { onNew?: () => void }) {
             {[
               { icon: <PencilRuler size={20} />, title: "New Irrigation Design", desc: "Start from a blank site, uploaded plan, or property dimensions.", onClick: newProject },
               { icon: <FolderOpen size={20} />, title: "Open Project", desc: "Continue an existing design.", href: "/projects" },
-              { icon: <Calculator size={20} />, title: "Quick Estimate", desc: "Create a fast repair or installation estimate without a full design.", href: "/estimates/quick" },
+              { icon: <Calculator size={20} />, title: "Quick Estimate", desc: "Create a fast repair or installation estimate without a full design.", href: "/projects/estimates/quick" },
               { icon: <Package size={20} />, title: "Material Calculator", desc: "Calculate pipe, fittings, valves, sprinklers and other materials.", href: "/materials?tab=calculator" },
             ].map((a) =>
               a.href ? (
@@ -226,9 +226,9 @@ export function Dashboard({ onNew }: { onNew?: () => void }) {
           {/* metrics */}
           <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Metric label="Active projects" value={String(metrics.active)} sub={`${summaries.length} total`} href="/projects" />
-            <Metric label="Total designed area" value={`${Math.round(metrics.area).toLocaleString()} sq ft`} sub="irrigated" href="/reports" />
-            <Metric label="Open estimates" value={formatCurrency0(metrics.openEstimates)} sub={`${metrics.openCount} designs & quotes`} href="/estimates" />
-            <Metric label="Projects this month" value={String(metrics.thisMonth)} sub={`${formatCurrency0(metrics.pipeline)} pipeline`} href="/reports" />
+            <Metric label="Total designed area" value={`${Math.round(metrics.area).toLocaleString()} sq ft`} sub="irrigated" href="/projects/reports" />
+            <Metric label="Open estimates" value={formatCurrency0(metrics.openEstimates)} sub={`${metrics.openCount} designs & quotes`} href="/projects/estimates" />
+            <Metric label="Projects this month" value={String(metrics.thisMonth)} sub={`${formatCurrency0(metrics.pipeline)} pipeline`} href="/projects/reports" />
           </section>
 
           {/* recent projects */}
@@ -346,8 +346,8 @@ export function Dashboard({ onNew }: { onNew?: () => void }) {
           {/* business shortcuts */}
           <section className="grid grid-cols-2 gap-2 md:grid-cols-5">
             {[
-              { icon: <Wrench size={16} />, label: "Create Repair Quote", href: "/estimates/quick?kind=repair" },
-              { icon: <UserPlus size={16} />, label: "Add Customer", href: "/customers?new=1" },
+              { icon: <Wrench size={16} />, label: "Create Repair Quote", href: "/projects/estimates/quick?kind=repair" },
+              { icon: <UserPlus size={16} />, label: "Add Customer", href: "/customers" },
               { icon: <Tags size={16} />, label: "Update Material Prices", href: "/materials" },
               { icon: <BookOpen size={16} />, label: "View Product Library", href: "/products" },
               { icon: <FileBarChart size={16} />, label: "Export Reports", href: "/reports" },
