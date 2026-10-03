@@ -9,7 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build:html": "node spa/build.mjs"
+    "build:html": "node spa/build.mjs",
+    "test:sql": "node supabase/tests/validate.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -26,6 +27,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@tailwindcss/cli": "^4.3.3",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.3",

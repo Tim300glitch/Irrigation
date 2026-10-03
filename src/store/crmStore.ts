@@ -248,6 +248,13 @@ export const useCrm = create<CrmState>((set, get) => ({
     if (lead.customerId && lead.propertyId) return { customerId: lead.customerId, propertyId: lead.propertyId };
     const { customer, property } = get().createCustomer({ firstName: lead.firstName, lastName: lead.lastName, phone: lead.phone, email: lead.email, billingAddress: lead.address, leadSource: lead.source, campaignId: lead.campaignId, notes: lead.notes }, { address: lead.address });
     get().update("leads", id, { customerId: customer.id, propertyId: property!.id, convertedAt: nowIso(), stage: lead.stage === "new" ? "contacted" : lead.stage });
+    // the lead's history (created, calls, notes) becomes part of the customer's timeline
+    const changed: ActivityLog[] = [];
+    const all = get().data.activity.map((a) => (a.entityType === "lead" && a.entityId === id && !a.customerId ? (changed.push({ ...a, customerId: customer.id }), { ...a, customerId: customer.id }) : a));
+    if (changed.length) {
+      set((s) => ({ data: { ...s.data, activity: all } }));
+      persist("activity", changed, all);
+    }
     get().log({ type: "lead", message: `Lead converted to customer`, entityType: "customer", entityId: customer.id, customerId: customer.id });
     return { customerId: customer.id, propertyId: property!.id };
   },
@@ -290,7 +297,7 @@ export const useCrm = create<CrmState>((set, get) => ({
     get().update("estimates", id, { status: e.status === "draft" ? "sent" : e.status, sentAt: nowIso() });
     const c = get().data.customers.find((x) => x.id === e.customerId);
     const tpl = get().data.messageTemplates.find((t) => t.id === "msg_est_ready");
-    if (c && tpl) get().sendMessage({ customerId: c.id, channel: "email", direction: "out", subject: renderTemplate(tpl.subject, { company: get().settings.businessName }), body: renderTemplate(tpl.body, { first_name: c.firstName, company: get().settings.businessName, link: `${location.origin}/portal?c=${c.id}&estimate=${id}` }), templateId: tpl.id });
+    if (c && tpl) get().sendMessage({ customerId: c.id, channel: "email", direction: "out", subject: renderTemplate(tpl.subject, { company: get().settings.businessName }), body: renderTemplate(tpl.body, { first_name: c.firstName, company: get().settings.businessName, link: `${typeof location !== "undefined" ? location.origin : ""}/portal?c=${c.id}&estimate=${id}` }), templateId: tpl.id });
     get().log({ type: "estimate", message: `Estimate #${e.number} sent — ${money(estimateTotal(e))}`, entityType: "estimate", entityId: id, customerId: e.customerId, amount: estimateTotal(e) });
     const lead = get().data.leads.find((l) => l.estimateId === id || (l.customerId === e.customerId && !["approved", "lost"].includes(l.stage)));
     if (lead && !["approved", "lost", "follow_up"].includes(lead.stage)) get().update("leads", lead.id, { stage: "estimate_sent", estimateId: id, estimatedValue: estimateTotal(e), lastContactAt: nowIso() });
@@ -463,7 +470,7 @@ export const useCrm = create<CrmState>((set, get) => ({
     const c = get().data.customers.find((x) => x.id === inv.customerId);
     const tpl = get().data.messageTemplates.find((t) => t.id === "msg_inv");
     const t = invoiceTotals(inv, get().data.payments);
-    if (c && tpl) get().sendMessage({ customerId: c.id, channel: "email", direction: "out", subject: renderTemplate(tpl.subject, { invoice_number: `INV-${inv.number}`, company: get().settings.businessName }), body: renderTemplate(tpl.body, { first_name: c.firstName, amount: money(t.balance), link: `${location.origin}/portal?c=${c.id}&invoice=${id}` }), templateId: tpl.id });
+    if (c && tpl) get().sendMessage({ customerId: c.id, channel: "email", direction: "out", subject: renderTemplate(tpl.subject, { invoice_number: `INV-${inv.number}`, company: get().settings.businessName }), body: renderTemplate(tpl.body, { first_name: c.firstName, amount: money(t.balance), link: `${typeof location !== "undefined" ? location.origin : ""}/portal?c=${c.id}&invoice=${id}` }), templateId: tpl.id });
     get().log({ type: "invoice", message: `Invoice INV-${inv.number} sent — ${money(t.total)}`, entityType: "invoice", entityId: id, customerId: inv.customerId, jobId: inv.jobId, amount: t.total });
     toast(`INV-${inv.number} sent to ${customerName(c)}`, "success");
   },

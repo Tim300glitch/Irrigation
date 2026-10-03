@@ -1,17 +1,50 @@
-# DeltaLine Irrigation
+# DeltaLine Irrigation — CRM & Design Studio
+
+The operating system for an irrigation contractor: leads, customers, properties, zone-level
+irrigation system records and maps, Good/Better/Best estimates with e-signature, jobs, scheduling,
+dispatch, a mobile technician app, invoicing and payments, inventory and truck stock, time
+tracking, job costing, service plans, audits, reports, marketing ROI, automations, a customer portal
+and an online booking form — plus the **Design Studio** for engineering-grade system design
+(hydraulics, coverage, takeoff, PDF plan sets).
+
+```bash
+npm install
+npm run dev          # http://localhost:3000
+npm test             # business-logic & engineering unit tests (vitest)
+npm run test:sql     # applies supabase/migrations to an in-memory Postgres and smoke-tests them
+npm run typecheck
+npm run build        # production build
+npm run build:html   # single-file build: dist/deltaline-irrigation.html (hash routing)
+```
+
+The app opens on the owner dashboard with a realistic year of demo history (customers, properties,
+zones, jobs, invoices, payments, time, inventory, campaigns, plans, audits). Data is stored locally in
+IndexedDB until Supabase is configured (`.env.example`). Use the account menu → **View as…** to
+preview roles (e.g. a technician lands in the mobile Technician App). Settings → Data resets the demo.
+
+**Architecture, database design, information architecture and workflows:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).**
+
+```
+supabase/migrations   PostgreSQL schema (53 tables, RLS, views, global_search, triggers)
+src/lib/crm           domain types, row mapping, repository (IndexedDB / Supabase), auth,
+                      calc (pricing, estimates, invoices, job costing, audits, warranties),
+                      workflows, metrics, recommendations, automations, search, integrations, seed
+src/store/crmStore.ts CRM state + workflow actions (optimistic, persisted, activity-logged)
+src/components/crm    shell, command palette, quick create, charts, tables, system map,
+                      line items, photos, pages/* (one module per area)
+src/app               routes (CRM + Design Studio)
+```
+
+---
+
+## Design Studio
 
 Browser-based professional landscape irrigation design & planning — site drawing, head-to-head
 sprinkler layout, zoning, real hydraulic analysis, design validation, material takeoff, cost
 estimating and installer-ready PDF plan sets.
 
-```bash
-npm install
-npm run dev        # http://localhost:3000
-npm test           # engineering unit tests (vitest)
-npm run build
-```
-
-The app opens on a dashboard seeded with a complete demo (Hernandez Residence — 17 gear rotors,
+The Design Studio (`/studio`, `/projects`) opens seeded with a complete demo (Hernandez Residence — 17 gear rotors,
 3 zones, manifold, mainline, laterals, sleeves, controller) plus sample projects. All data is stored
 locally in IndexedDB and autosaved; Settings → "Reset demo data" restores the samples.
 
@@ -54,9 +87,9 @@ src/lib/storage       Repository interface + IndexedDB implementation (swap for 
 src/store             zustand stores: project document (undo/redo), editor UI, analysis, app data
 src/components/editor workspace shell, SVG canvas engine (tools, handles, hit-test, snapping),
                       panels, dialogs
-src/components/app    dashboard, app shell, new-project flow
-src/app               Next.js routes (dashboard, projects, design/[id], estimates, materials,
-                      products, customers, reports, settings)
+src/components/app    studio overview, studio shell (inside the CRM shell), new-project flow
+src/app               Next.js routes (studio, projects, design/[id], projects/estimates, materials,
+                      products, projects/reports, settings/design)
 ```
 
 Engineering calculations are isolated, documented in code (formulas and assumptions) and covered by
