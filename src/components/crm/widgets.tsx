@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Phone, MessageSquare, Mail, StickyNote, FileText, Wrench, Receipt, CreditCard, Camera, Bot, Activity, Package, ClipboardCheck, Filter, Send, Lightbulb, ArrowRight, Eraser } from "lucide-react";
 import type { ActivityLog, ActivityType, Channel, Message } from "@/lib/crm/types";
@@ -260,34 +259,7 @@ function RecRow({ r }: { r: Recommendation }) {
   );
 }
 
-/* ───────── print ───────── */
 
-export function PrintPortal({ children, onDone }: { children: ReactNode; onDone: () => void }) {
-  const [el] = useState(() => {
-    const d = document.createElement("div");
-    d.id = "print-root";
-    return d;
-  });
-  useEffect(() => {
-    document.body.appendChild(el);
-    document.body.classList.add("printing");
-    const after = () => onDone();
-    window.addEventListener("afterprint", after);
-    const t = setTimeout(() => window.print(), 250);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("afterprint", after);
-      document.body.classList.remove("printing");
-      el.remove();
-    };
-  }, [el, onDone]);
-  return createPortal(<div className="bg-white p-8 text-[12px] text-black">{children}</div>, el);
-}
-
-export function usePrint() {
-  const [node, setNode] = useState<ReactNode>(null);
-  return { print: (n: ReactNode) => setNode(n), portal: node ? <PrintPortal onDone={() => setNode(null)}>{node}</PrintPortal> : null };
-}
 
 export function WhoBadge({ id }: { id?: string }) {
   const e = useCrm((s) => s.data.employees.find((x) => x.id === id));

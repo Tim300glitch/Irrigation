@@ -12,7 +12,9 @@ import { optionsFromTemplate, repriceLines, uid } from "@/lib/crm/workflows";
 import { Page, PageHeader, Card, Button, Badge, Tabs, SearchBox, Select, Field, Input, Textarea, Modal, cn, StatusBadge, useQuery, setQueryParam, Empty, NumberInput, KV } from "../ui";
 import { DataTable, downloadText, toCsv } from "../DataTable";
 import { LineItemsEditor } from "../LineItems";
-import { SignaturePad, Timeline, usePrint } from "../widgets";
+import { SignaturePad, Timeline } from "../widgets";
+import { saveFile } from "@/lib/saveFile";
+import { estimatePdf, pdfName } from "@/lib/pdf/crmPdf";
 import { useQuickCreate } from "../QuickCreate";
 import { ask } from "@/components/AskHost";
 import { toast } from "@/lib/crm/toast";
@@ -102,7 +104,6 @@ export function EstimateBuilder({ id }: { id: string }) {
   const [optId, setOptId] = useState<string | undefined>();
   const [signing, setSigning] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
-  const { print, portal } = usePrint();
   if (!e) return <Page><Empty title="Estimate not found" /></Page>;
   const c = data.customers.find((x) => x.id === e.customerId);
   const p = data.properties.find((x) => x.id === e.propertyId);
@@ -136,7 +137,7 @@ export function EstimateBuilder({ id }: { id: string }) {
         }
         actions={
           <>
-            <Button onClick={() => print(<EstimateDocument estimate={e} />)}><Printer size={14} /> PDF</Button>
+            <Button onClick={() => saveFile(estimatePdf(e, c, p, settings), pdfName(`Estimate ${e.number} ${customerName(c)}`))}><Printer size={14} /> Download PDF</Button>
             <Button onClick={() => { const n = st.duplicateEstimate(id); router.push(`/estimates/${n.id}`); }}><Copy size={14} /> Duplicate</Button>
             <Link href={`/portal?c=${e.customerId}&estimate=${e.id}`} target="_blank" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[13px] font-medium hover:bg-slate-50"><ExternalLink size={13} /> Customer view</Link>
             {!locked && <Button onClick={() => st.sendEstimate(id)}><Send size={14} /> {e.sentAt ? "Resend" : "Send"}</Button>}
@@ -276,7 +277,6 @@ export function EstimateBuilder({ id }: { id: string }) {
           </div>
         </Modal>
       )}
-      {portal}
     </Page>
   );
 }
@@ -384,91 +384,4 @@ export function ApproveForm({ e, onDone }: { e: Estimate; onDone: (optionId: str
   );
 }
 
-/* ───────── printable / customer-facing document ───────── */
-
-export function EstimateDocument({ estimate: e }: { estimate: Estimate }) {
-  const s = useCrm.getState();
-  const c = s.data.customers.find((x) => x.id === e.customerId);
-  const p = s.data.properties.find((x) => x.id === e.propertyId);
-  const set = s.settings;
-  return (
-    <div style={{ fontFamily: "Inter, Arial, sans-serif", color: "#0f172a", fontSize: 11 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #0f6490", paddingBottom: 10 }}>
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#0f6490" }}>{set.businessName}</div>
-          <div>{addressFull(set.address)}</div>
-          <div>{set.phone} · {set.email}</div>
-          <div>{set.license}</div>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>ESTIMATE</div>
-          <div>#{e.number}</div>
-          <div>Date: {date(e.createdAt)}</div>
-          {e.validUntil && <div>Valid until: {date(e.validUntil)}</div>}
-        </div>
-      </div>
-      <div style={{ display: "flex", gap: 40, margin: "12px 0" }}>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 9, color: "#64748b", textTransform: "uppercase" }}>Prepared for</div>
-          <div style={{ fontWeight: 600 }}>{customerName(c)}</div>
-          <div>{c?.phone}</div>
-          <div>{c?.email}</div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 9, color: "#64748b", textTransform: "uppercase" }}>Service address</div>
-          <div>{addressFull(p?.address)}</div>
-        </div>
-      </div>
-      <div style={{ fontSize: 14, fontWeight: 700, margin: "8px 0" }}>{e.title}</div>
-      {e.options.map((o, i) => {
-        const t = optionTotals(e, o);
-        return (
-          <div key={o.id} style={{ border: "1px solid #cbd5e1", borderRadius: 6, padding: 10, marginBottom: 10, breakInside: "avoid" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 12 }}>
-              <span>{e.options.length > 1 ? `Option ${i + 1}: ` : ""}{o.name}{e.selectedOptionId === o.id && e.status === "approved" ? " ✓ Approved" : ""}</span>
-              <span>{money(t.total)}</span>
-            </div>
-            {o.description && <div style={{ color: "#475569", margin: "4px 0 6px" }}>{o.description}</div>}
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ textAlign: "left", borderBottom: "1px solid #94a3b8", fontSize: 9, color: "#64748b" }}>
-                  <th>Item</th>
-                  <th style={{ textAlign: "right" }}>Qty</th>
-                  <th style={{ textAlign: "right" }}>Price</th>
-                  <th style={{ textAlign: "right" }}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {o.items.map((l) => (
-                  <tr key={l.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "3px 0" }}>{l.name}{l.description ? <div style={{ color: "#64748b", fontSize: 9 }}>{l.description}</div> : null}</td>
-                    <td style={{ textAlign: "right" }}>{l.qty} {l.unit}</td>
-                    <td style={{ textAlign: "right" }}>{money(l.unitPrice)}</td>
-                    <td style={{ textAlign: "right" }}>{money(l.qty * l.unitPrice)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ marginLeft: "auto", width: 220, marginTop: 6 }}>
-              {[["Subtotal", t.subtotal], ...(t.discount ? [["Discount", -t.discount]] : []), ...(t.fees ? [["Fees", t.fees]] : []), ["Tax", t.tax]].map(([k, v]) => (
-                <div key={k as string} style={{ display: "flex", justifyContent: "space-between" }}><span>{k}</span><span>{money(v as number)}</span></div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, borderTop: "1px solid #0f172a", marginTop: 2, paddingTop: 2 }}><span>Total</span><span>{money(t.total)}</span></div>
-              {t.deposit > 0 && <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}><span>Deposit due ({e.depositPct}%)</span><span>{money(t.deposit)}</span></div>}
-            </div>
-          </div>
-        );
-      })}
-      {e.customerNotes && <div style={{ margin: "8px 0" }}><b>Notes:</b> {e.customerNotes}</div>}
-      <div style={{ fontSize: 9, color: "#475569", marginTop: 8 }}><b>Terms:</b> {e.terms}</div>
-      <div style={{ display: "flex", gap: 30, marginTop: 24 }}>
-        <div style={{ flex: 1, borderTop: "1px solid #0f172a", paddingTop: 4 }}>
-          {e.signature?.dataUrl ? <img src={e.signature.dataUrl} alt="" style={{ height: 40, marginTop: -44 }} /> : null}
-          Customer signature {e.signature ? `— ${e.signature.name}, ${date(e.signature.signedAt)}` : ""}
-        </div>
-        <div style={{ width: 160, borderTop: "1px solid #0f172a", paddingTop: 4 }}>Date</div>
-      </div>
-    </div>
-  );
-}
 

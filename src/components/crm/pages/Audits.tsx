@@ -11,7 +11,8 @@ import { auditScore, type AuditResult } from "@/lib/crm/calc";
 import { customLine } from "@/lib/crm/workflows";
 import { Page, PageHeader, Card, Button, Badge, Field, Input, Select, Textarea, cn, Empty, Check, StatTile, SearchBox, Tabs, NumberInput } from "../ui";
 import { DataTable } from "../DataTable";
-import { usePrint } from "../widgets";
+import { saveFile } from "@/lib/saveFile";
+import { auditPdf, pdfName } from "@/lib/pdf/crmPdf";
 import { useQuickCreate } from "../QuickCreate";
 import { ZoneStatusBadges, ZoneMiniTable } from "./Customers";
 
@@ -75,7 +76,6 @@ export function AuditDetail({ id }: { id: string }) {
   const st = useCrm();
   const { data, update } = st;
   const router = useRouter();
-  const { print, portal } = usePrint();
   const [tab, setTab] = useState<"measure" | "zones" | "results">("measure");
   const a = data.audits.find((x) => x.id === id);
   const r = useMemo(() => (a ? auditScore(a) : null), [a]);
@@ -105,7 +105,7 @@ export function AuditDetail({ id }: { id: string }) {
         subtitle={<span className="flex flex-wrap gap-x-3"><Link href={`/customers/${c?.id}`} className="font-medium text-slate-700 hover:text-brand-700">{customerName(c)}</Link><span>{date(a.date)}</span><span>Auditor: {fullName(data.employees.find((e) => e.id === a.technicianId))}</span></span>}
         actions={
           <>
-            <Button onClick={() => print(<AuditDocument audit={a} result={r} />)}><Printer size={14} /> PDF report</Button>
+            <Button onClick={() => saveFile(auditPdf(a, r, p, c, zones, st.settings), pdfName(`Irrigation audit ${p?.address.street ?? ""} ${a.date}`))}><Printer size={14} /> Download PDF report</Button>
             <Button
               onClick={() => {
                 const e = st.createEstimate({ customerId: p!.customerId, propertyId: p!.id, title: `Audit repairs — ${p!.address.street}`, serviceType: "sprinkler_repair", options: [{ id: `opt_${Date.now()}`, name: "Recommended repairs", description: "From irrigation audit " + date(a.date), items: r.repairs.filter((x) => x.estCost).map((x) => customLine("other", x.text, 1, x.estCost!, x.estCost! * 0.45, "ea", false)) }] });
@@ -215,7 +215,6 @@ export function AuditDetail({ id }: { id: string }) {
           <Card title="Current zone conditions" pad={false}><ZoneMiniTable zones={zones.slice(0, 6)} /></Card>
         </div>
       </div>
-      {portal}
     </Page>
   );
 }
@@ -248,54 +247,6 @@ function PriorityList({ items, empty }: { items: { text: string; priority: 1 | 2
   );
 }
 
-export function AuditDocument({ audit: a, result: r }: { audit: AuditReport; result: AuditResult }) {
-  const s = useCrm.getState();
-  const p = s.data.properties.find((x) => x.id === a.propertyId);
-  const c = s.data.customers.find((x) => x.id === p?.customerId);
-  const zones = s.data.zones.filter((z) => z.systemId === a.systemId).sort((x, y) => x.number - y.number);
-  const box = { border: "1px solid #cbd5e1", borderRadius: 6, padding: 8 } as const;
-  return (
-    <div style={{ fontFamily: "Inter, Arial, sans-serif", color: "#0f172a", fontSize: 11 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #0f6490", paddingBottom: 8 }}>
-        <div><div style={{ fontSize: 20, fontWeight: 700, color: "#0f6490" }}>Irrigation System Audit</div><div>{addressFull(p?.address)} · {customerName(c)}</div></div>
-        <div style={{ textAlign: "right" }}><div style={{ fontWeight: 700 }}>{s.settings.businessName}</div><div>{s.settings.phone}</div><div>Audit date {date(a.date)}</div></div>
-      </div>
-      <div style={{ display: "flex", gap: 10, margin: "10px 0" }}>
-        {[["Overall score", `${r.overall} (${r.grade})`], ["Water efficiency", String(r.efficiency)], ["Est. water savings", `${r.savingsPct}%${r.savingsGallonsYr ? ` · ${num(r.savingsGallonsYr)} gal/yr` : ""}`], ["Distribution uniformity", a.distributionUniformity ? `${Math.round(a.distributionUniformity * 100)}%` : "—"]].map(([k, v]) => (
-          <div key={k} style={{ ...box, flex: 1 }}><div style={{ fontSize: 9, color: "#64748b" }}>{k}</div><div style={{ fontSize: 16, fontWeight: 700 }}>{v}</div></div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 10 }}>
-        <div style={{ ...box, flex: 1 }}>
-          <b>Measurements</b>
-          <div>Static {a.staticPsi ?? "—"} psi · Dynamic {a.dynamicPsi ?? "—"} psi · Flow {a.flowGpm ?? "—"} GPM · Precip {a.precipRate ?? "—"} in/hr</div>
-          <div>Broken heads {a.brokenHeads} · Leaks {a.leaks} · Overspray {a.overspray} · Runoff {a.runoff} · Low {a.lowHeads} · Tilted {a.tiltedHeads}</div>
-          <div>Spacing {a.headSpacingOk ? "OK" : "needs correction"} · Nozzles {a.nozzleMatch ? "matched" : "mismatched"}</div>
-        </div>
-        <div style={{ ...box, flex: 1 }}>
-          <b>Site & controller</b>
-          <div>Controller: {a.controllerSettings || "—"}</div>
-          <div>Schedule: {a.wateringSchedule || "—"} ({a.minutesPerWeek ?? "—"} min/wk)</div>
-          <div>Soil {a.soilType.replace("_", " ")} · Sun {a.sunExposure} · Slope {a.slopePct}% · {a.plantType}</div>
-        </div>
-      </div>
-      <div style={{ marginTop: 10, fontWeight: 700 }}>Repair recommendations (priority order)</div>
-      <ol>{r.repairs.map((x, i) => <li key={i}>P{x.priority} — {x.text}{x.estCost ? ` (≈ ${money0(x.estCost)})` : ""}</li>)}</ol>
-      <div style={{ fontWeight: 700 }}>Upgrade recommendations</div>
-      <ol>{r.upgrades.map((x, i) => <li key={i}>P{x.priority} — {x.text} (≈ {x.savingsPct}% water savings)</li>)}</ol>
-      <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 10 }}>
-        <thead><tr style={{ textAlign: "left", borderBottom: "1px solid #94a3b8" }}><th>Zone</th><th>Type</th><th>Equipment</th><th>Precip</th><th>DU</th><th>Findings</th></tr></thead>
-        <tbody>
-          {zones.map((z) => {
-            const f = a.zoneFindings.find((x) => x.zoneId === z.id);
-            return <tr key={z.id} style={{ borderBottom: "1px solid #e2e8f0" }}><td>{z.number}. {z.name}</td><td>{z.sprinklerType}</td><td>{z.manufacturer} {z.model}</td><td>{f?.precipRate ?? "—"}</td><td>{f?.du ? `${Math.round(f.du * 100)}%` : "—"}</td><td>{f?.issues.map((i) => i.replace(/_/g, " ")).join(", ") || "OK"} {f?.note}</td></tr>;
-          })}
-        </tbody>
-      </table>
-      {a.notes && <div style={{ marginTop: 8 }}><b>Auditor notes:</b> {a.notes}</div>}
-    </div>
-  );
-}
 
 /* ───────── Irrigation systems overview ───────── */
 

@@ -6,6 +6,7 @@ import { X, ChevronRight, Search, Inbox } from "lucide-react";
 import { cn } from "@/components/ui";
 import type { Tone } from "@/lib/crm/constants";
 import { initials } from "@/lib/crm/format";
+import { spaRouter } from "@/lib/spaRouter";
 import type { Employee } from "@/lib/crm/types";
 
 export { cn };
@@ -15,10 +16,11 @@ export { Button, Modal, NumberInput } from "@/components/ui";
 
 function readQuery() {
   if (typeof window === "undefined") return "";
-  const h = window.location.hash;
-  if (h.startsWith("#/")) {
-    const i = h.indexOf("?");
-    return i >= 0 ? h.slice(i + 1) : "";
+  const r = spaRouter();
+  if (r) {
+    const u = r.get();
+    const i = u.indexOf("?");
+    return i >= 0 ? u.slice(i + 1) : "";
   }
   return window.location.search.slice(1);
 }
@@ -26,7 +28,6 @@ const qSubs = new Set<() => void>();
 if (typeof window !== "undefined") {
   const fire = () => qSubs.forEach((f) => f());
   window.addEventListener("popstate", fire);
-  window.addEventListener("hashchange", fire);
   for (const k of ["pushState", "replaceState"] as const) {
     const orig = history[k].bind(history);
     history[k] = (...args: Parameters<History["pushState"]>) => {
@@ -39,7 +40,11 @@ export function useQuery(): URLSearchParams {
   const q = useSyncExternalStore(
     (cb) => {
       qSubs.add(cb);
-      return () => qSubs.delete(cb);
+      const unsub = spaRouter()?.subscribe(cb);
+      return () => {
+        qSubs.delete(cb);
+        unsub?.();
+      };
     },
     readQuery,
     () => "",
@@ -52,10 +57,13 @@ export function setQueryParam(key: string, value: string | null) {
   if (value === null || value === "") p.delete(key);
   else p.set(key, value);
   const qs = p.toString();
-  if (window.location.hash.startsWith("#/")) {
-    const path = window.location.hash.slice(1).split("?")[0];
-    history.replaceState(null, "", `#${path}${qs ? "?" + qs : ""}`);
-  } else history.replaceState(null, "", `${window.location.pathname}${qs ? "?" + qs : ""}`);
+  const r = spaRouter();
+  if (r) return r.replace(`${r.get().split("?")[0]}${qs ? "?" + qs : ""}`);
+  try {
+    history.replaceState(null, "", `${window.location.pathname}${qs ? "?" + qs : ""}`);
+  } catch {
+    /* URL not writable in this frame */
+  }
 }
 
 /* ───────── layout ───────── */

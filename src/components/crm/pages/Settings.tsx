@@ -14,6 +14,7 @@ import { COLLECTIONS, type CrmData } from "@/lib/crm/types";
 import { Page, PageHeader, Card, Button, Badge, Field, Input, Select, Textarea, Check, Switch, cn, useQuery, setQueryParam, NumberInput } from "../ui";
 import { PermissionsMatrix } from "./Resources";
 import { ask } from "@/components/AskHost";
+import { saveFile } from "@/lib/saveFile";
 import { toast } from "@/lib/crm/toast";
 
 const SECTIONS = [
@@ -324,7 +325,7 @@ function DataSection() {
     <>
       <Card title="Backup & restore">
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => { const blob = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), settings: st.settings, data: st.data }); const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([blob], { type: "application/json" })); a.download = `crm-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click(); }}><Download size={14} /> Export everything (JSON)</Button>
+          <Button onClick={() => { const blob = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), settings: st.settings, data: st.data }); void saveFile(new Blob([blob], { type: "application/json" }), `crm-backup-${new Date().toISOString().slice(0, 10)}.json`); }}><Download size={14} /> Export everything (JSON)</Button>
           <Button onClick={() => file.current?.click()}><Upload size={14} /> Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const j = JSON.parse(await f.text()) as { settings: CrmSettings; data: CrmData }; if (!(await ask.confirm("Replace all current data with this backup?", true))) return; await crmRepo.replaceAll({ data: j.data, settings: j.settings }); useCrm.setState({ data: j.data, settings: j.settings }); toast("Backup restored", "success"); }} />
           <Button variant="danger" onClick={async () => { if (await ask.confirm("Reset to the demo dataset? All local changes will be lost.", true)) await st.resetDemo(); }}><RotateCcw size={14} /> Reset demo data</Button>

@@ -1,10 +1,11 @@
 /**
  * Single-file build entry: the whole app (CRM + Design Studio) in one HTML page
- * with hash routing (#/jobs, #/customers/<id> …). Built by `npm run build:html`.
+ * with in-memory routing mirrored to the hash (#/jobs, #/customers/<id> …). Built by `npm run build:html`.
  * Generated route table — keep in sync with src/app.
  */
 import { createRoot } from "react-dom/client";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { installSpaRouter } from "@/lib/spaRouter";
 // @ts-expect-error text import handled by esbuild
 import pdfWorkerSource from "pdfjs-dist/build/pdf.worker.min.mjs";
 import HomePage from "@/app/page";
@@ -97,22 +98,14 @@ const DYNAMIC: [RegExp, (id: string) => React.ReactElement][] = [
   [/^\/properties\/([^/]+)$/, (id) => <PropertiesDetail key={id} id={id} />],
 ];
 
-function useHash() {
-  const [h, setH] = useState(() => window.location.hash);
-  useEffect(() => {
-    const f = () => setH(window.location.hash);
-    window.addEventListener("hashchange", f);
-    return () => window.removeEventListener("hashchange", f);
-  }, []);
-  return h;
-}
+const router = installSpaRouter();
 
 function App() {
-  const hash = useHash();
-  const full = hash.replace(/^#/, "") || "/";
+  const full = useSyncExternalStore(router.subscribe, router.get);
   const path = full.split("#")[0].split("?")[0] || "/";
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.getElementById("main")?.scrollTo(0, 0);
   }, [path]);
   const design = path.match(/^\/design\/(.+)$/);
   if (design) return <Workspace key={design[1]} projectId={decodeURIComponent(design[1])} />;

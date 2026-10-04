@@ -7,6 +7,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { cn, Empty } from "./ui";
+import { saveFile } from "@/lib/saveFile";
 
 export interface Column<T> {
   key: string;
@@ -106,9 +107,5 @@ export function toCsv<T>(rows: T[], cols: { header: string; value: (r: T) => str
 }
 
 export function downloadText(name: string, text: string, mime = "text/csv") {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([text], { type: mime }));
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  void saveFile(new Blob([text], { type: mime }), name);
 }

@@ -170,11 +170,3 @@ input[type="number"]::-webkit-inner-spin-button {
 .animate-slide { animation: crm-slide 0.18s ease-out; }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-
-/* Printable documents (estimates, invoices, audits, maps): only #print-root prints */
-@media print {
-  body.printing > *:not(#print-root) { display: none !important; }
-  #print-root { display: block !important; position: static !important; }
-  #print-root * { color-adjust: exact; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
-#print-root { display: none; }

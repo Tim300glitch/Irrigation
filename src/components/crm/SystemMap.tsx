@@ -17,7 +17,9 @@ import { date } from "@/lib/crm/format";
 import { SERIES } from "./charts";
 import { Button, cn, Field, Input, Select, Textarea, Badge, StatusBadge, Segmented } from "./ui";
 import { PhotoGallery, PhotoUploadButton } from "./Photos";
-import { usePrint } from "./widgets";
+import { saveFile } from "@/lib/saveFile";
+import { mapPdf, pdfName } from "@/lib/pdf/crmPdf";
+import { toast } from "@/lib/crm/toast";
 
 type Tool = "select" | "pan" | "measure" | ComponentType;
 interface Pt {
@@ -145,7 +147,6 @@ export function SystemMap({ system, property, readOnly = false, height = 620 }: 
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id?: string; start: Pt; orig?: Pt; origPts?: Pt[]; pan?: { x: number; y: number } } | null>(null);
   const bgInput = useRef<HTMLInputElement>(null);
-  const { print, portal } = usePrint();
   const W = system.mapWidth;
   const H = system.mapHeight;
   const selected = comps.find((c) => c.id === sel);
@@ -411,16 +412,23 @@ export function SystemMap({ system, property, readOnly = false, height = 620 }: 
             <button onClick={() => zoom(0.8)} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Zoom out"><ZoomOut size={15} /></button>
             <button onClick={() => setView({ x: 0, y: 0, k: 1 })} className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100" aria-label="Fit"><Maximize2 size={15} /></button>
             <button
-              onClick={() =>
-                print(
-                  <MapPrint title={property ? `${property.address.street}, ${property.address.city}` : system.name} zones={zones}>
-                    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", maxHeight: "6.6in", border: "1px solid #cbd5e1" }}>{svgBody(true)}</svg>
-                  </MapPrint>,
-                )
-              }
+              onClick={async () => {
+                const svg = svgRef.current;
+                if (!svg) return;
+                // render the whole map (current pan/zoom reset) without selection or grid
+                const clone = svg.cloneNode(true) as SVGSVGElement;
+                clone.querySelector("g")?.setAttribute("transform", "");
+                clone.querySelectorAll("pattern, rect[fill^='url(#grid']").forEach((n) => n.remove());
+                try {
+                  const title = property ? `${property.address.street}, ${property.address.city}` : system.name;
+                  await saveFile(await mapPdf(clone, title, zones, useCrm.getState().settings), pdfName(`System map ${title}`));
+                } catch (e) {
+                  toast(`Couldn't create the PDF: ${(e as Error).message}`, "error");
+                }
+              }}
               className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100"
-              aria-label="Print or save as PDF"
-              title="Print / save as PDF"
+              aria-label="Download map as PDF"
+              title="Download map as PDF"
             >
               <Printer size={15} />
             </button>
@@ -538,7 +546,6 @@ export function SystemMap({ system, property, readOnly = false, height = 620 }: 
         </div>
       </div>
       <ComponentPanel comp={selected} zones={zones} readOnly={readOnly} system={system} onClose={() => setSel(null)} />
-      {portal}
     </div>
   );
 }
@@ -654,51 +661,3 @@ function ComponentPanel({ comp, zones, readOnly, system, onClose }: { comp?: Sys
   );
 }
 
-function MapPrint({ title, zones, children }: { title: string; zones: Zone[]; children: ReactNode }) {
-  const s = useCrm.getState().settings;
-  return (
-    <div style={{ fontFamily: "Inter, Arial, sans-serif" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #0f172a", paddingBottom: 8, marginBottom: 10 }}>
-        <div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Irrigation System Map</div>
-          <div style={{ fontSize: 12 }}>{title}</div>
-        </div>
-        <div style={{ textAlign: "right", fontSize: 11 }}>
-          <div style={{ fontWeight: 700 }}>{s.businessName}</div>
-          <div>{s.phone} · {s.license}</div>
-          <div>Printed {new Date().toLocaleDateString()}</div>
-        </div>
-      </div>
-      {children}
-      <table style={{ width: "100%", marginTop: 10, fontSize: 10, borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ textAlign: "left", borderBottom: "1px solid #94a3b8" }}>
-            <th>Zone</th>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Equipment</th>
-            <th>Valve</th>
-            <th>Heads</th>
-            <th>GPM</th>
-          </tr>
-        </thead>
-        <tbody>
-          {zones.map((z) => (
-            <tr key={z.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-              <td>
-                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 4, background: zoneColor(z.number), marginRight: 4 }} />
-                {z.number}
-              </td>
-              <td>{z.name}</td>
-              <td>{z.sprinklerType}</td>
-              <td>{z.manufacturer} {z.model}</td>
-              <td>{z.valveType} {z.valveSize} — {z.valveLocation}</td>
-              <td>{z.headCount || "—"}</td>
-              <td>{z.flowGpm ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}

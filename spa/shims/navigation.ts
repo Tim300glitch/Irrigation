@@ -1,30 +1,20 @@
 import { useSyncExternalStore } from "react";
+import { spaRouter } from "@/lib/spaRouter";
 
-/** next/navigation replacement: hash-based routing (#/path?query). */
-function currentPath() {
-  const h = window.location.hash.replace(/^#/, "") || "/";
-  return h.split("#")[0].split("?")[0] || "/";
-}
-function subscribe(cb: () => void) {
-  window.addEventListener("hashchange", cb);
-  return () => window.removeEventListener("hashchange", cb);
-}
+/** next/navigation replacement for the single-file build (in-memory router, see spaRouter.ts). */
+const r = () => spaRouter()!;
+const path = () => r().get().split("#")[0].split("?")[0] || "/";
+const query = () => {
+  const u = r().get();
+  const i = u.indexOf("?");
+  return i >= 0 ? u.slice(i + 1) : "";
+};
 export function usePathname() {
-  return useSyncExternalStore(subscribe, currentPath, () => "/");
+  return useSyncExternalStore((cb) => r().subscribe(cb), path, () => "/");
 }
 export function useRouter() {
-  return {
-    push: (url: string) => {
-      window.location.hash = url;
-    },
-    replace: (url: string) => {
-      window.location.hash = url;
-    },
-    back: () => history.back(),
-  };
+  return { push: (url: string) => r().push(url), replace: (url: string) => r().replace(url), back: () => r().back() };
 }
 export function useSearchParams() {
-  const h = window.location.hash;
-  const i = h.indexOf("?");
-  return new URLSearchParams(i >= 0 ? h.slice(i + 1) : "");
+  return new URLSearchParams(useSyncExternalStore((cb) => r().subscribe(cb), query, () => ""));
 }

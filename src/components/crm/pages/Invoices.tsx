@@ -13,7 +13,9 @@ import { providers } from "@/lib/crm/integrations";
 import { Page, PageHeader, Card, Button, Badge, Tabs, SearchBox, Select, Field, Input, Textarea, Modal, cn, StatusBadge, useQuery, setQueryParam, Empty, KV, StatTile, NumberInput } from "../ui";
 import { DataTable, downloadText, toCsv } from "../DataTable";
 import { LineItemsEditor } from "../LineItems";
-import { Timeline, usePrint } from "../widgets";
+import { Timeline } from "../widgets";
+import { saveFile } from "@/lib/saveFile";
+import { invoicePdf, pdfName } from "@/lib/pdf/crmPdf";
 import { useQuickCreate } from "../QuickCreate";
 import { ask } from "@/components/AskHost";
 import { toast } from "@/lib/crm/toast";
@@ -85,7 +87,6 @@ export function InvoiceDetail({ id }: { id: string }) {
   const st = useCrm();
   const { data, update, now } = st;
   const [payOpen, setPayOpen] = useState(false);
-  const { print, portal } = usePrint();
   const inv = data.invoices.find((x) => x.id === id);
   if (!inv) return <Page><Empty title="Invoice not found" /></Page>;
   const c = data.customers.find((x) => x.id === inv.customerId);
@@ -103,7 +104,7 @@ export function InvoiceDetail({ id }: { id: string }) {
         subtitle={<span className="flex flex-wrap gap-x-3"><Link href={`/customers/${c?.id}`} className="font-medium text-slate-700 hover:text-brand-700">{customerName(c)}</Link>{p && <span>{addressFull(p.address)}</span>}{job && <Link href={`/jobs/${job.id}`} className="hover:text-brand-700">Job #{job.number}</Link>}{inv.sentAt && <span>Sent {relative(inv.sentAt, now)}</span>}{inv.lastReminderAt && <span className="flex items-center gap-1"><Bell size={11} /> reminded {relative(inv.lastReminderAt, now)}</span>}</span>}
         actions={
           <>
-            <Button onClick={() => print(<InvoiceDocument invoice={inv} />)}><Printer size={14} /> PDF</Button>
+            <Button onClick={() => saveFile(invoicePdf(inv, pays, c, p, st.settings), pdfName(`Invoice INV-${inv.number} ${customerName(c)}`))}><Printer size={14} /> Download PDF</Button>
             <Button onClick={async () => { const link = await providers.payments.createPaymentLink(id, t.balance, `INV-${inv.number}`); try { await navigator.clipboard.writeText(link); } catch {} toast("Payment link copied", "success"); }}><Link2 size={14} /> Payment link</Button>
             <Link href={`/portal?c=${inv.customerId}&invoice=${id}`} target="_blank" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 text-[13px] font-medium hover:bg-slate-50"><ExternalLink size={13} /> Customer view</Link>
             {inv.status !== "void" && t.balance > 0 && <Button onClick={() => st.sendInvoice(id)}><Send size={14} /> {inv.sentAt ? "Send reminder" : "Send"}</Button>}
@@ -151,7 +152,6 @@ export function InvoiceDetail({ id }: { id: string }) {
         </div>
       </div>
       {payOpen && <PaymentModal invoice={inv} balance={t.balance} onClose={() => setPayOpen(false)} />}
-      {portal}
     </Page>
   );
 }
@@ -181,36 +181,6 @@ export function PaymentModal({ invoice, balance, onClose }: { invoice: Invoice; 
   );
 }
 
-export function InvoiceDocument({ invoice: inv }: { invoice: Invoice }) {
-  const s = useCrm.getState();
-  const c = s.data.customers.find((x) => x.id === inv.customerId);
-  const p = s.data.properties.find((x) => x.id === inv.propertyId);
-  const t = invoiceTotals(inv, s.data.payments);
-  const set = s.settings;
-  return (
-    <div style={{ fontFamily: "Inter, Arial, sans-serif", color: "#0f172a", fontSize: 11 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "2px solid #0f6490", paddingBottom: 10 }}>
-        <div><div style={{ fontSize: 20, fontWeight: 700, color: "#0f6490" }}>{set.businessName}</div><div>{addressFull(set.address)}</div><div>{set.phone} · {set.email}</div><div>{set.license}</div></div>
-        <div style={{ textAlign: "right" }}><div style={{ fontSize: 22, fontWeight: 700 }}>{inv.kind === "deposit" ? "DEPOSIT INVOICE" : "INVOICE"}</div><div>INV-{inv.number}</div><div>Issued {date(inv.issueDate)}</div><div>Due {date(inv.dueDate)}</div></div>
-      </div>
-      <div style={{ display: "flex", gap: 40, margin: "12px 0" }}>
-        <div><div style={{ fontWeight: 700, fontSize: 9, color: "#64748b" }}>BILL TO</div><div style={{ fontWeight: 600 }}>{customerName(c)}</div><div>{addressFull(c?.billingAddress)}</div><div>{c?.email}</div></div>
-        {p && <div><div style={{ fontWeight: 700, fontSize: 9, color: "#64748b" }}>SERVICE ADDRESS</div><div>{addressFull(p.address)}</div></div>}
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr style={{ textAlign: "left", borderBottom: "1px solid #94a3b8", fontSize: 9, color: "#64748b" }}><th>Description</th><th style={{ textAlign: "right" }}>Qty</th><th style={{ textAlign: "right" }}>Rate</th><th style={{ textAlign: "right" }}>Amount</th></tr></thead>
-        <tbody>{inv.items.map((l) => <tr key={l.id} style={{ borderBottom: "1px solid #f1f5f9" }}><td style={{ padding: "3px 0" }}>{l.name}</td><td style={{ textAlign: "right" }}>{l.qty} {l.unit}</td><td style={{ textAlign: "right" }}>{money(l.unitPrice)}</td><td style={{ textAlign: "right" }}>{money(l.qty * l.unitPrice)}</td></tr>)}</tbody>
-      </table>
-      <div style={{ marginLeft: "auto", width: 240, marginTop: 8 }}>
-        {[["Subtotal", t.subtotal], ...(t.discount ? [["Discount", -t.discount]] : []), ["Tax", t.tax], ["Total", t.total], ...(t.depositCredit ? [["Deposit received", -t.depositCredit]] : []), ...(t.paid ? [["Payments", -t.paid]] : [])].map(([k, v]) => <div key={k as string} style={{ display: "flex", justifyContent: "space-between" }}><span>{k}</span><span>{money(v as number)}</span></div>)}
-        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 13, borderTop: "1px solid #0f172a", marginTop: 3, paddingTop: 3 }}><span>Balance due</span><span>{money(t.balance)}</span></div>
-      </div>
-      {inv.notes && <div style={{ marginTop: 10 }}>{inv.notes}</div>}
-      <div style={{ fontSize: 9, color: "#475569", marginTop: 8 }}>{inv.terms}</div>
-      <div style={{ marginTop: 10, fontSize: 10 }}>Pay online: {typeof location !== "undefined" ? location.origin : ""}/portal · Checks payable to {set.legalName}</div>
-    </div>
-  );
-}
 
 export function PaymentsPage() {
   const data = useCrm((s) => s.data);
