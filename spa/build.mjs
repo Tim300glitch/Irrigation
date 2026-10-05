@@ -41,7 +41,7 @@ const head = `<title>DeltaLine Irrigation CRM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <script>try{var t=localStorage.getItem("crm-theme"),a=document.documentElement.getAttribute("data-theme");if(t==="dark"||(!t&&(a==="dark"||(a!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))))document.documentElement.classList.add("dark")}catch(e){}</script>
-<style>:root{color-scheme:light}html,body{height:100%;background:#f5f7f9;color:#0f172a}.dark body{background:#0b111a;color:#e8edf4}</style>
+<style>:root{color-scheme:light}html,body{height:100%;background:#f5f7f9;color:#0f172a}.dark body,body.dark{background:#0b111a;color:#e8edf4}</style>
 <style>${css}</style>`;
 const body = `<div id="root"><div style="display:flex;height:100vh;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#64748b">Loading DeltaLine Irrigation CRM…</div></div>
 <script>${js}</script>`;

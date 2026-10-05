@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import {
   LayoutDashboard,
   Filter,
@@ -46,6 +46,7 @@ import { QuickCreateHost, useQuickCreate, QUICK_ACTIONS } from "./QuickCreate";
 import { Toasts } from "./Toasts";
 import { relative, fullName } from "@/lib/crm/format";
 import { roleLabel } from "@/lib/crm/constants";
+import { installTheme, setDarkTheme, themeStore } from "@/lib/theme";
 import { AskHost } from "@/components/AskHost";
 
 interface NavItem {
@@ -111,17 +112,9 @@ const NAV: { group: string; items: NavItem[] }[] = [
 ];
 
 export function useTheme() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
-  const toggle = () => {
-    const next = !document.documentElement.classList.contains("dark");
-    document.documentElement.classList.toggle("dark", next);
-    try {
-      localStorage.setItem("crm-theme", next ? "dark" : "light");
-    } catch {}
-    setDark(next);
-  };
-  return { dark, toggle };
+  useEffect(installTheme, []);
+  const dark = useSyncExternalStore(themeStore.subscribe, themeStore.isDark, themeStore.serverIsDark);
+  return { dark, toggle: () => setDarkTheme(!themeStore.isDark()) };
 }
 
 /** Global keyboard shortcuts + store bootstrap + clock tick shared by every shell. */
