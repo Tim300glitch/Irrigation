@@ -58,7 +58,7 @@ function QuickEstimateEditor() {
     const next = { ...q, updatedAt: new Date().toISOString() };
     const list = quick.some((x) => x.id === q.id) ? quick.map((x) => (x.id === q.id ? next : x)) : [next, ...quick];
     await setQuick(list);
-    router.push("/estimates");
+    router.push("/projects/estimates");
   };
   const mk = 1 + q.markupPct / 100;
   return (

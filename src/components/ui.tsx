@@ -1,12 +1,13 @@
 "use client";
 /** Small UI primitive set (buttons, fields, modal, badges) used across the app. */
 import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { X } from "lucide-react";
 import { formatFeetInches, parseLength } from "@/lib/units/units";
 import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export function cn(...a: Parameters<typeof clsx>) {
-  return clsx(...a);
+  return twMerge(clsx(...a));
 }
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "subtle";
@@ -239,7 +240,7 @@ export function Modal({ open, onClose, title, subtitle, children, width = 720, f
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 pt-[6vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-[6vh]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl" style={{ maxWidth: width }} role="dialog" aria-label={title}>
         <div className="flex items-start justify-between border-b border-slate-200 px-5 py-3.5">
           <div>
