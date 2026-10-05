@@ -68,7 +68,8 @@ export function LineChart({ data, series, x, height = 220, format = (v) => Strin
   const max = niceMax(Math.max(1, ...data.flatMap((d) => series.map((s) => Number(d[s.key]) || 0))));
   const sx = (i: number) => PAD.l + (data.length <= 1 ? iw / 2 : (i / (data.length - 1)) * iw);
   const sy = (v: number) => PAD.t + ih - (v / max) * ih;
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
+  const empty = !data.some((d) => series.some((s) => Number(d[s.key]) > 0));
+  const ticks = empty ? [0] : [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
   const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(iw / 64))));
   return (
     <div className={cn("w-full", className)}>
@@ -78,6 +79,7 @@ export function LineChart({ data, series, x, height = 220, format = (v) => Strin
         </div>
       )}
       <div ref={ref} className="relative w-full" style={{ height }} onMouseLeave={() => setHover(null)}>
+        {empty && <div className="pointer-events-none absolute inset-0 grid place-items-center text-[12px] text-slate-400">No data yet</div>}
         {w > 0 && (
           <svg width={w} height={height} className="block overflow-visible" role="img">
             {ticks.map((t) => (
@@ -158,7 +160,8 @@ export function BarChart({ data, series, x, height = 220, format = (v) => String
   const groupW = band - gap;
   const barW = stacked ? groupW : (groupW - (series.length - 1) * 2) / series.length;
   const sy = (v: number) => (v / max) * ih;
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
+  const empty = !data.some((d) => series.some((s) => Number(d[s.key]) > 0));
+  const ticks = empty ? [0] : [0, 0.25, 0.5, 0.75, 1].map((t) => t * max);
   const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(iw / 56))));
   const r = Math.min(4, barW / 2);
   const roundTop = (x0: number, y0: number, bw: number, bh: number) => (bh <= r ? `M${x0},${y0 + bh} h${bw} v${-bh} h${-bw} Z` : `M${x0},${y0 + bh} v${-(bh - r)} q0,${-r} ${r},${-r} h${bw - 2 * r} q${r},0 ${r},${r} v${bh - r} Z`);
@@ -170,6 +173,7 @@ export function BarChart({ data, series, x, height = 220, format = (v) => String
         </div>
       )}
       <div ref={ref} className="relative w-full" style={{ height }} onMouseLeave={() => setHover(null)}>
+        {empty && <div className="pointer-events-none absolute inset-0 grid place-items-center text-[12px] text-slate-400">No data yet</div>}
         {w > 0 && (
           <svg width={w} height={height} className="block" role="img">
             {ticks.map((t) => (

@@ -100,6 +100,7 @@ export interface CrmState {
   runAutomations: () => number;
   linkDesigns: () => Promise<void>;
   resetDemo: () => Promise<void>;
+  startFresh: () => Promise<void>;
 }
 
 const nowIso = () => new Date().toISOString();
@@ -124,7 +125,8 @@ export const useCrm = create<CrmState>((set, get) => ({
     initPromise = (async () => {
       try {
         let snap = await crmRepo.load();
-        if ((!snap || !snap.data.customers.length) && crmRepo.kind === "local") {
+        // first run only: an emptied CRM ("Start empty") must stay empty
+        if (!snap && crmRepo.kind === "local") {
           const seed = generateSeed();
           await localRepo.replaceAll(seed);
           snap = seed;
@@ -571,7 +573,22 @@ export const useCrm = create<CrmState>((set, get) => ({
     get().runAutomations();
     toast("Demo data restored", "success");
   },
+
+  startFresh: async () => {
+    const { data, settings, session } = get();
+    const me = data.employees.find((e) => e.id === session?.employeeId) ?? data.employees.find((e) => e.role === "owner");
+    const next = emptyData();
+    // keep the setup a business reuses; clear every customer, job and transaction
+    for (const c of KEEP_ON_FRESH_START) (next as Record<string, unknown>)[c] = data[c];
+    if (me) next.employees = [{ ...me, truckId: undefined }];
+    await crmRepo.replaceAll({ data: next, settings });
+    set({ data: next });
+    toast("All records cleared", "success");
+  },
 }));
+
+/** Reference data kept by "Start empty": price book, templates, automation rules, plan offerings. */
+const KEEP_ON_FRESH_START = ["items", "estimateTemplates", "checklistTemplates", "messageTemplates", "automations", "servicePlans"] as const;
 
 /** Deduct materials used on a completed job from the tech's truck (or the warehouse). */
 function postInventory(job: Job, force = false) {

@@ -329,6 +329,7 @@ function DataSection() {
           <Button onClick={() => file.current?.click()}><Upload size={14} /> Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const j = JSON.parse(await f.text()) as { settings: CrmSettings; data: CrmData }; if (!(await ask.confirm("Replace all current data with this backup?", true))) return; await crmRepo.replaceAll({ data: j.data, settings: j.settings }); useCrm.setState({ data: j.data, settings: j.settings }); toast("Backup restored", "success"); }} />
           <Button variant="danger" onClick={async () => { if (await ask.confirm("Reset to the demo dataset? All local changes will be lost.", true)) await st.resetDemo(); }}><RotateCcw size={14} /> Reset demo data</Button>
+          {crmRepo.kind === "local" && <Button variant="danger" onClick={async () => { if (await ask.confirm("Delete all customers, leads, jobs, estimates, invoices, payments and other records? Your settings, price book, templates and your own employee profile are kept. Export a backup first if you might want this data back.", true)) await st.startFresh(); }}><Trash2 size={14} /> Start empty</Button>}
         </div>
       </Card>
       <Card title="Records">
