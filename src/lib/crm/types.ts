@@ -33,6 +33,8 @@ export interface Employee {
   truckId?: Id;
   hireDate: ISODate;
   active: boolean;
+  /** deleted from the team; kept only so past jobs, hours and pay still show their name */
+  archived?: boolean;
   /** weekly schedule, 0 = Sunday */
   workDays: number[];
   shiftStart: string; // "07:00"

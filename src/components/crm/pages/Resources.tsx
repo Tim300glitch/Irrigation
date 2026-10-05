@@ -2,8 +2,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Truck, Package, AlertTriangle, ArrowRightLeft, Repeat, CalendarPlus, Download, Clock, LogIn, LogOut, ShoppingCart, Pencil, Phone, Mail, Globe, BadgeCheck } from "lucide-react";
-import { useCrm, byId } from "@/store/crmStore";
+import { Plus, Truck, Package, AlertTriangle, ArrowRightLeft, Repeat, CalendarPlus, Download, Clock, LogIn, LogOut, ShoppingCart, Pencil, Phone, Mail, Globe, BadgeCheck, Trash2 } from "lucide-react";
+import { useCrm, byId, canDeleteEmployee, employeeHasHistory } from "@/store/crmStore";
+import { ask } from "@/components/AskHost";
 import type { Employee, InventoryItem, ItemCategory, PricingRule, Role, ServicePlan, Vendor, PlanSubscription } from "@/lib/crm/types";
 import { ITEM_CATEGORIES, ROLES, TIME_TYPES, roleLabel, PERMISSIONS } from "@/lib/crm/constants";
 import { customerName, date, dateTime, fullName, hours, money, money0, pct, phone, isoDate, relative, time } from "@/lib/crm/format";
@@ -363,7 +364,7 @@ export function EmployeesPage() {
           <div className="mb-3"><Segmented size="sm" value={range} onChange={setRange} options={[{ id: "week", label: "This week" }, { id: "month", label: "This month" }, { id: "last90", label: "90 days" }, { id: "year", label: "This year" }]} /></div>
           <Card pad={false}>
             <DataTable
-              rows={stats.map((s) => ({ ...s, id: s.employee.id }))}
+              rows={stats.filter((s) => !s.employee.archived).map((s) => ({ ...s, id: s.employee.id }))}
               onRowClick={(s) => setQueryParam("open", s.id)}
               columns={[
                 { key: "n", header: "Employee", mobile: true, cell: (s) => <span className="flex items-center gap-2.5"><Avatar e={s.employee} size={30} /><span><span className="block font-medium text-slate-900">{fullName(s.employee)}</span><span className="text-[11.5px] text-slate-500">{roleLabel(s.employee.role)} · {s.employee.phone}</span></span></span> },
@@ -391,8 +392,26 @@ function EmployeeProfile({ e, stats, onClose }: { e: Employee; stats?: ReturnTyp
   const st = useCrm();
   const set = (p: Partial<Employee>) => st.update("employees", e.id, p);
   const [cert, setCert] = useState("");
+  const remove = async () => {
+    const check = canDeleteEmployee(st.data, e.id, st.session?.employeeId);
+    if (!check.ok) return toast(check.message, "error");
+    const now = new Date().toISOString();
+    const jobs = st.data.jobs.filter((j) => j.status !== "completed" && j.status !== "cancelled" && (j.assignedTo === e.id || j.crew.includes(e.id))).length;
+    const appts = st.data.appointments.filter((a) => a.end > now && a.employeeIds.includes(e.id)).length;
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    const open = [jobs && plural(jobs, "open job"), appts && plural(appts, "upcoming appointment")].filter(Boolean).join(" and ");
+    const msg = [
+      `Delete ${fullName(e)}?`,
+      open ? `They'll be taken off ${open}, which will need reassigning.` : "",
+      employeeHasHistory(st.data, e.id) ? "Their past jobs, hours and pay history stay in your records under their name." : "",
+    ].filter(Boolean).join(" ");
+    if (!(await ask.confirm(msg, true))) return;
+    const r = st.deleteEmployee(e.id);
+    toast(r.message, r.ok ? "success" : "error");
+    if (r.ok) onClose();
+  };
   return (
-    <SlideOver open onClose={onClose} width={600} title={<span className="flex items-center gap-2"><Avatar e={e} size={28} />{fullName(e)}</span>} subtitle={`${roleLabel(e.role)} · since ${date(e.hireDate)}`}>
+    <SlideOver open onClose={onClose} width={600} title={<span className="flex items-center gap-2"><Avatar e={e} size={28} />{fullName(e)}</span>} subtitle={`${roleLabel(e.role)} · since ${date(e.hireDate)}`} footer={<div className="flex justify-start"><Button variant="danger" onClick={() => void remove()}><Trash2 size={14} /> Delete employee</Button></div>}>
       {stats && <div className="mb-4 grid grid-cols-3 gap-2"><StatTile label="Jobs" value={stats.jobs} /><StatTile label="Revenue" value={money0(stats.revenue)} /><StatTile label="Rev / hour" value={stats.hours ? money0(stats.revPerHour) : "—"} /><StatTile label="Hours" value={hours(stats.hours)} /><StatTile label="Callbacks" value={stats.callbacks} /><StatTile label="Photos" value={stats.photos} /></div>}
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">

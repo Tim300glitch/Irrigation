@@ -23,6 +23,7 @@ views and search):
 |---|---|
 | `supabase/migrations/0001_core_schema.sql` | 53 tables, foreign keys, check-constraint enums, indexes, generated columns, `updated_at` triggers |
 | `supabase/migrations/0002_security_views.sql` | Row-level security (org isolation + role rules), numbering sequences, derived views, `global_search()`, inventory & payment triggers, Storage bucket policies |
+| `supabase/migrations/0003_employee_archive.sql` | `employees.archived` (deleting someone with history archives them) and `time_entries` restricted so hours worked can never be cascade-deleted |
 
 ### Entity map
 

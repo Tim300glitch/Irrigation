@@ -293,7 +293,7 @@ export function CrmShell({ children, title }: { children: ReactNode; title?: str
                     </div>
                   </div>
                   <div className="px-2 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">View as (permissions preview)</div>
-                  {state.data.employees.map((e) => (
+                  {state.data.employees.filter((e) => !e.archived).map((e) => (
                     <MenuItem
                       key={e.id}
                       icon={<Avatar e={e} size={18} />}

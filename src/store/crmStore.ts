@@ -101,6 +101,7 @@ export interface CrmState {
   linkDesigns: () => Promise<void>;
   resetDemo: () => Promise<void>;
   startFresh: () => Promise<void>;
+  deleteEmployee: (id: string) => { ok: boolean; message: string };
 }
 
 const nowIso = () => new Date().toISOString();
@@ -574,6 +575,25 @@ export const useCrm = create<CrmState>((set, get) => ({
     toast("Demo data restored", "success");
   },
 
+  deleteEmployee: (id) => {
+    const { data, session } = get();
+    const e = data.employees.find((x) => x.id === id);
+    if (!e) return { ok: false, message: "Employee not found" };
+    const check = canDeleteEmployee(data, id, session?.employeeId);
+    if (!check.ok) return check;
+    const now = nowIso();
+    const name = `${e.firstName} ${e.lastName}`.trim();
+    // take them off open work so nothing is left assigned to someone who's gone
+    for (const l of data.leads) if (l.assignedTo === id && l.stage !== "approved" && l.stage !== "lost") get().update("leads", l.id, { assignedTo: undefined });
+    for (const j of data.jobs) if (!CLOSED_JOB.includes(j.status) && (j.assignedTo === id || j.crew.includes(id))) get().update("jobs", j.id, { assignedTo: j.assignedTo === id ? undefined : j.assignedTo, crew: j.crew.filter((c) => c !== id) });
+    for (const a of data.appointments) if (a.end > now && a.employeeIds.includes(id)) get().update("appointments", a.id, { employeeIds: a.employeeIds.filter((x) => x !== id) });
+    for (const t of data.trucks) if (t.employeeId === id) get().update("trucks", t.id, { employeeId: undefined });
+    if (employeeHasHistory(data, id)) get().update("employees", id, { active: false, archived: true, truckId: undefined });
+    else get().remove("employees", id);
+    get().log({ type: "note", message: `Employee ${name} deleted`, entityType: "employee", entityId: id });
+    return { ok: true, message: `${name} deleted` };
+  },
+
   startFresh: async () => {
     const { data, settings, session } = get();
     const me = data.employees.find((e) => e.id === session?.employeeId) ?? data.employees.find((e) => e.role === "owner");
@@ -586,6 +606,29 @@ export const useCrm = create<CrmState>((set, get) => ({
     toast("All records cleared", "success");
   },
 }));
+
+const CLOSED_JOB: Job["status"][] = ["completed", "cancelled"];
+
+/** Past work, hours or records that must keep pointing at this person. */
+export function employeeHasHistory(d: CrmData, id: string) {
+  return (
+    d.timeEntries.some((t) => t.employeeId === id) ||
+    d.jobs.some((j) => CLOSED_JOB.includes(j.status) && (j.assignedTo === id || j.crew.includes(id))) ||
+    d.audits.some((a) => a.technicianId === id) ||
+    d.inventoryTxns.some((t) => t.employeeId === id) ||
+    d.photos.some((p) => p.takenBy === id) ||
+    d.estimates.some((x) => x.createdBy === id) ||
+    d.changeOrders.some((x) => x.createdBy === id)
+  );
+}
+
+export function canDeleteEmployee(d: CrmData, id: string, meId?: string): { ok: boolean; message: string } {
+  const e = d.employees.find((x) => x.id === id);
+  if (!e) return { ok: false, message: "Employee not found" };
+  if (id === meId) return { ok: false, message: "You can't delete yourself. Ask another owner or admin." };
+  if (e.role === "owner" && !d.employees.some((x) => x.id !== id && x.role === "owner" && !x.archived)) return { ok: false, message: "This is the only owner. Make someone else an owner first." };
+  return { ok: true, message: "" };
+}
 
 /** Reference data kept by "Start empty": price book, templates, automation rules, plan offerings. */
 const KEEP_ON_FRESH_START = ["items", "estimateTemplates", "checklistTemplates", "messageTemplates", "automations", "servicePlans"] as const;
