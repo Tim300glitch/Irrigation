@@ -183,7 +183,7 @@ export function EstimateBuilder({ id }: { id: string }) {
                   <Field label="Tier"><Select disabled={locked} value={opt.tier ?? ""} onChange={(ev) => setOpt({ ...opt, tier: (ev.target.value || undefined) as EstimateOption["tier"] })} options={[{ value: "", label: "—" }, { value: "good", label: "Good" }, { value: "better", label: "Better (recommended)" }, { value: "best", label: "Best" }]} /></Field>
                   <Field label="Description shown to customer" className="sm:col-span-2"><Textarea disabled={locked} value={opt.description} onChange={(ev) => setOpt({ ...opt, description: ev.target.value })} rows={2} /></Field>
                 </div>
-                <LineItemsEditor items={opt.items} readOnly={locked} onChange={(items) => setOpt({ ...opt, items })} />
+                <LineItemsEditor items={opt.items} readOnly={locked} onChange={(items) => setOpt({ ...opt, items })} serviceType={e.serviceType} />
                 {!locked && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                     <Button size="sm" variant="ghost" onClick={() => setTplOpen(true)}><LayoutTemplate size={13} /> Load template</Button>
@@ -229,7 +229,7 @@ export function EstimateBuilder({ id }: { id: string }) {
           </Card>
           {e.signature && (
             <Card title="Customer approval">
-              {e.signature.dataUrl ? <img src={e.signature.dataUrl} alt="Signature" className="h-16 rounded border border-slate-200 bg-white" /> : null}
+              {e.signature.dataUrl ? <img src={e.signature.dataUrl} alt="Signature" className="h-16 rounded border border-slate-200" style={{ backgroundColor: "#ffffff" }} /> : null}
               <KV cols={2} className="mt-2" items={[["Signed by", e.signature.name], ["Date", date(e.signature.signedAt)], ["Option", e.options.find((o) => o.id === e.selectedOptionId)?.name]]} />
             </Card>
           )}

@@ -2,7 +2,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Navigation, Phone, KeyRound, Dog, Play, Pause, CheckCircle2, Truck, MapPin, Receipt, FilePlus2, Clock, AlertTriangle, PhoneCall, Smartphone, Printer, Download, Flag, Calendar } from "lucide-react";
+import { Archive, ArchiveRestore, Trash2, Plus, Navigation, Phone, KeyRound, Dog, Play, Pause, CheckCircle2, Truck, MapPin, Receipt, FilePlus2, Clock, AlertTriangle, PhoneCall, Smartphone, Printer, Download, Flag, Calendar } from "lucide-react";
+import { ask } from "@/components/AskHost";
+import { toast } from "@/lib/crm/toast";
 import { useCrm, byId } from "@/store/crmStore";
 import type { Job, JobStatus, LineItem, ChangeOrder, ServiceType } from "@/lib/crm/types";
 import { JOB_STATUSES, SERVICE_TYPES, serviceLabel, serviceColor, OPEN_JOB, TIME_TYPES } from "@/lib/crm/constants";
@@ -14,7 +16,7 @@ import { DataTable, downloadText, toCsv } from "../DataTable";
 import { LineItemsEditor } from "../LineItems";
 import { SignaturePad, Timeline, Conversation } from "../widgets";
 import { PhotoGallery, PhotoUploadButton } from "../Photos";
-import { EmployeePicker } from "../pickers";
+import { CrewPicker, EmployeePicker } from "../pickers";
 import { CompareBar } from "../charts";
 import { useQuickCreate } from "../QuickCreate";
 import { ZoneStatusBadges } from "./Customers";
@@ -36,16 +38,18 @@ export function JobsPage() {
   const rows = useMemo(() => {
     const t = search.toLowerCase();
     return data.jobs.filter((j) => {
+      if ((status === "archived") !== !!j.archived) return false;
       if (status === "open" && !OPEN_JOB.includes(j.status)) return false;
       if (status === "today" && !(j.scheduledStart && new Date(j.scheduledStart).toDateString() === new Date(now).toDateString())) return false;
-      if (!["open", "today", "all"].includes(status) && j.status !== status) return false;
+      if (!["open", "today", "all", "archived"].includes(status) && j.status !== status) return false;
       if (typeFilter && j.serviceType !== typeFilter) return false;
-      if (tech && j.assignedTo !== tech) return false;
+      if (tech && j.assignedTo !== tech && !j.crew.includes(tech)) return false;
       if (t && !`${j.number} ${j.title} ${customerName(cust.get(j.customerId))} ${prop.get(j.propertyId)?.address.street ?? ""}`.toLowerCase().includes(t)) return false;
       return true;
     });
   }, [data.jobs, status, typeFilter, tech, search, cust, prop, now]);
-  const c = (s: JobStatus) => data.jobs.filter((j) => j.status === s).length;
+  const live = data.jobs.filter((j) => !j.archived);
+  const c = (s: JobStatus) => live.filter((j) => j.status === s).length;
   return (
     <Page>
       <PageHeader
@@ -65,7 +69,7 @@ export function JobsPage() {
         value={status}
         onChange={(s) => setQueryParam("status", s)}
         tabs={[
-          { id: "open", label: "Open", count: data.jobs.filter((j) => OPEN_JOB.includes(j.status)).length },
+          { id: "open", label: "Open", count: live.filter((j) => OPEN_JOB.includes(j.status)).length },
           { id: "today", label: "Today" },
           { id: "unscheduled", label: "Unscheduled", count: c("unscheduled") },
           { id: "scheduled", label: "Scheduled", count: c("scheduled") },
@@ -75,13 +79,14 @@ export function JobsPage() {
           { id: "callback", label: "Callbacks", count: c("callback") },
           { id: "completed", label: "Completed" },
           { id: "all", label: "All" },
+          { id: "archived", label: "Archived", count: data.jobs.length - live.length || undefined },
         ]}
       />
       <Card pad={false}>
         <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3">
           <SearchBox value={search} onChange={setSearch} placeholder="Job #, customer, address…" className="w-full sm:w-72" />
           <Select value={typeFilter} onChange={(e) => setQueryParam("type", e.target.value)} options={[{ value: "", label: "All job types" }, ...SERVICE_TYPES.map((s) => ({ value: s.id, label: s.label }))]} className="w-52" />
-          <EmployeePicker value={tech} onChange={setTech} roles={["technician", "crew_lead", "estimator", "owner"]} placeholder="All technicians" />
+          <EmployeePicker value={tech} onChange={setTech} placeholder="All employees" />
         </div>
         <DataTable
           rows={rows}
@@ -151,6 +156,7 @@ export function JobDetail({ id }: { id: string }) {
             <span className="text-slate-400">#{j.number}</span> {j.title} <StatusBadge list={JOB_STATUSES} value={j.status} />
             {j.priority !== "normal" && <Badge tone={j.priority === "urgent" ? "red" : j.priority === "high" ? "amber" : "slate"}>{j.priority}</Badge>}
             {j.callbackOfJobId && <Badge tone="red"><PhoneCall size={11} /> Callback</Badge>}
+            {j.archived && <Badge><Archive size={11} /> Archived</Badge>}
           </span>
         }
         subtitle={
@@ -167,6 +173,8 @@ export function JobDetail({ id }: { id: string }) {
             <Select value={j.status} onChange={(e) => st.setJobStatus(id, e.target.value as JobStatus)} options={JOB_STATUSES.map((s) => ({ value: s.id, label: s.label }))} className="h-8 w-40" />
             {nextAction && <Button variant="primary" onClick={() => st.setJobStatus(id, nextAction.status)}><nextAction.icon size={14} /> {nextAction.label}</Button>}
             {j.status === "in_progress" && <Button onClick={() => st.setJobStatus(id, "paused")}><Pause size={14} /> Pause</Button>}
+            <Button variant="ghost" onClick={() => { set({ archived: !j.archived }); toast(j.archived ? `Job #${j.number} restored` : `Job #${j.number} archived`, "success"); }} title={j.archived ? "Restore to job lists" : "Hide from job lists, schedule and dispatch (history kept)"}>{j.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />} {j.archived ? "Unarchive" : "Archive"}</Button>
+            <Button variant="ghost" onClick={async () => { if (!(await ask.confirm(`Delete job #${j.number} "${j.title}"? Its change orders are deleted too. Time entries, photos and stock movements are kept but unlinked. This can't be undone; Archive keeps it instead.`, true))) return; const r = st.deleteJob(id); toast(r.message, r.ok ? "success" : "error"); if (r.ok) router.push("/jobs"); }} className="text-red-600 hover:bg-red-50" title="Delete job"><Trash2 size={14} /> Delete</Button>
             {j.completedAt && (inv ? <Button onClick={() => router.push(`/invoices/${inv.id}`)}><Receipt size={14} /> INV-{inv.number}</Button> : <Button variant="primary" onClick={() => { const iid = st.createInvoiceFromJob(id); if (iid) router.push(`/invoices/${iid}`); }}><Receipt size={14} /> Create invoice</Button>)}
           </>
         }
@@ -197,17 +205,13 @@ export function JobDetail({ id }: { id: string }) {
                 <Field label="Start" className="col-span-2"><Input type="datetime-local" value={j.scheduledStart ? toLocalInput(j.scheduledStart) : ""} onChange={(e) => st.scheduleJob(id, e.target.value ? new Date(e.target.value).toISOString() : undefined)} /></Field>
                 <Field label="Duration (h)"><Input type="number" min={0.5} step={0.5} value={j.durationHrs} onChange={(e) => set({ durationHrs: Number(e.target.value) })} /></Field>
                 <Field label="Arrival window"><Input value={j.arrivalWindow} onChange={(e) => set({ arrivalWindow: e.target.value })} /></Field>
-                <Field label="Lead technician" className="col-span-2"><EmployeePicker value={j.assignedTo} onChange={(v) => set({ assignedTo: v || undefined })} roles={["technician", "crew_lead", "estimator", "owner"]} /></Field>
+                <Field label="Lead technician" className="col-span-2"><EmployeePicker value={j.assignedTo} onChange={(v) => set({ assignedTo: v || undefined, crew: j.crew.filter((x) => x !== v) })} /></Field>
                 <Field label="Priority"><Select value={j.priority} onChange={(e) => set({ priority: e.target.value as Job["priority"] })} options={["low", "normal", "high", "urgent"].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))} /></Field>
                 <Field label="Job type"><Select value={j.serviceType} onChange={(e) => set({ serviceType: e.target.value as ServiceType })} options={SERVICE_TYPES.map((s) => ({ value: s.id, label: s.short }))} /></Field>
               </div>
               <div className="mt-3">
                 <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Crew</div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                  {data.employees.filter((e) => e.active && ["technician", "crew_lead", "helper"].includes(e.role)).map((e) => (
-                    <Check key={e.id} label={<span className="flex items-center gap-1.5"><Avatar e={e} size={18} />{fullName(e)}</span>} checked={j.crew.includes(e.id) || j.assignedTo === e.id} onChange={(v) => set({ crew: v ? [...new Set([...j.crew, e.id])] : j.crew.filter((x) => x !== e.id) })} />
-                  ))}
-                </div>
+                <CrewPicker value={j.crew} lead={j.assignedTo} onChange={(crew) => set({ crew })} />
               </div>
             </Card>
             <Card title="Scope of work"><Textarea value={j.scope} onChange={(e) => set({ scope: e.target.value })} rows={3} /></Card>
@@ -272,7 +276,7 @@ export function JobDetail({ id }: { id: string }) {
 
       {tab === "items" && (
         <Card title="Materials, labor & equipment" sub="enter quantities actually used — completing the job deducts them from truck / warehouse stock">
-          <LineItemsEditor items={j.items} usedQty onChange={(items) => set({ items })} />
+          <LineItemsEditor items={j.items} usedQty onChange={(items) => set({ items })} serviceType={j.serviceType} />
           <div className="mt-3 flex flex-wrap justify-end gap-6 border-t border-slate-100 pt-3 text-[12.5px]">
             <span>Materials <b className="tabular">{money(lt.materialPrice)}</b></span>
             <span>Labor <b className="tabular">{money(lt.laborPrice)}</b></span>
@@ -354,7 +358,10 @@ export function ChangeOrderCard({ co, onSign }: { co: ChangeOrder; onSign: () =>
             <Button size="sm" variant="primary" onClick={onSign}>Get signature & approve</Button>
           </span>
         ) : co.signature ? (
-          <span className="text-[12px] text-slate-500">Signed by {co.signature.name} · {dateTime(co.signature.signedAt)}</span>
+          <span className="flex items-center gap-2 text-[12px] text-slate-500">
+            {co.signature.dataUrl && <img src={co.signature.dataUrl} alt="Signature" className="h-10 rounded border border-slate-200" style={{ backgroundColor: "#ffffff" }} />}
+            Signed by {co.signature.name} · {dateTime(co.signature.signedAt)}
+          </span>
         ) : null}
       </div>
     </Card>

@@ -1,11 +1,13 @@
 "use client";
-import { Plus, Trash2, Clock, Wrench } from "lucide-react";
-import type { ItemKind, LineItem } from "@/lib/crm/types";
-import { lineFromItem, customLine, uid } from "@/lib/crm/workflows";
+import { Plus, Trash2, Clock, Wrench, PackagePlus } from "lucide-react";
+import { useMemo } from "react";
+import type { ItemKind, LineItem, ServiceType } from "@/lib/crm/types";
+import { lineFromItem, customLine, uid, defaultLines } from "@/lib/crm/workflows";
 import { marginOf, r2 } from "@/lib/crm/calc";
 import { money, pct } from "@/lib/crm/format";
 import { useCrm } from "@/store/crmStore";
 import { ItemPicker } from "./pickers";
+import { LineOptions } from "./ItemOptions";
 import { Button, cn, NumberInput } from "./ui";
 
 const KINDS: { value: ItemKind; label: string }[] = [
@@ -29,8 +31,11 @@ function kindChange(i: LineItem, kind: ItemKind, laborRate: number): Partial<Lin
 
 const KIND_DOT: Record<ItemKind, string> = { material: "bg-sky-500", labor: "bg-violet-500", equipment: "bg-amber-500", fee: "bg-slate-400", subcontract: "bg-orange-500", other: "bg-slate-400" };
 
-export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost = true, readOnly, usedQty, compact }: { items: T[]; onChange: (items: T[]) => void; showCost?: boolean; readOnly?: boolean; usedQty?: boolean; compact?: boolean }) {
+export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost = true, readOnly, usedQty, compact, serviceType }: { items: T[]; onChange: (items: T[]) => void; showCost?: boolean; readOnly?: boolean; usedQty?: boolean; compact?: boolean; /** offers the job type's default items */ serviceType?: ServiceType }) {
   const settings = useCrm((s) => s.settings);
+  const items_ = useCrm((s) => s.data.items);
+  const catalog = useMemo(() => new Map(items_.map((x) => [x.id, x])), [items_]);
+  const kit = serviceType && !readOnly ? defaultLines(items_, serviceType) : [];
   const upd = (id: string, patch: Partial<LineItem> & { usedQty?: number }) => onChange(items.map((i) => (i.id === id ? ({ ...i, ...patch } as T) : i)));
   const add = (l: LineItem) => onChange([...items, l as T]);
   return (
@@ -63,11 +68,13 @@ export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost 
                       <div className="py-1">
                         <div className="text-slate-900">{i.name}</div>
                         {i.description && <div className="text-[11.5px] text-slate-500">{i.description}</div>}
+                        <LineOptions line={i} item={catalog.get(i.itemId ?? "")} readOnly onChange={() => {}} />
                       </div>
                     ) : (
                       <>
                         <input value={i.name} onChange={(e) => upd(i.id, { name: e.target.value })} className="h-7 w-full rounded border border-transparent bg-transparent px-1.5 text-[13px] text-slate-900 hover:border-slate-200 focus:border-brand-400 focus:outline-none" />
                         <input value={i.description} placeholder="Description (optional)" onChange={(e) => upd(i.id, { description: e.target.value })} className="h-6 w-full rounded border border-transparent bg-transparent px-1.5 text-[11.5px] text-slate-500 placeholder:text-slate-300 hover:border-slate-200 focus:border-brand-400 focus:outline-none" />
+                        <LineOptions line={i} item={catalog.get(i.itemId ?? "")} onChange={(patch) => upd(i.id, patch)} />
                       </>
                     )}
                   </td>
@@ -131,6 +138,11 @@ export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost 
           <Button size="sm" variant="ghost" onClick={() => add(customLine("fee", "Diagnostic fee", 1, settings.diagnosticFee, 0, "ea", false))}>
             <Wrench size={13} /> Fee
           </Button>
+          {kit.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => onChange([...items, ...(kit as T[])])} title={kit.map((k) => k.name).join(", ")}>
+              <PackagePlus size={13} /> Default items ({kit.length})
+            </Button>
+          )}
         </div>
       )}
     </div>
