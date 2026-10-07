@@ -87,7 +87,7 @@ export function FieldHome() {
       {!isField && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white p-2.5 text-[12.5px] text-slate-600">
           Previewing as
-          <Select value={techId} onChange={(e) => setOverride(e.target.value)} options={data.employees.filter((e) => ["technician", "crew_lead"].includes(e.role)).map((e) => ({ value: e.id, label: fullName(e) }))} className="h-8 flex-1" />
+          <Select value={techId} onChange={(e) => setOverride(e.target.value)} options={data.employees.filter((e) => e.active && ["technician", "crew_lead"].includes(e.role)).map((e) => ({ value: e.id, label: fullName(e) }))} className="h-8 flex-1" />
         </div>
       )}
       {view === "truck" ? (

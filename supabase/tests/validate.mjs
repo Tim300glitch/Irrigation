@@ -14,7 +14,7 @@ create schema storage; create table storage.buckets(id text primary key, name te
 create table storage.objects(id uuid, bucket_id text, name text);
 create function storage.foldername(name text) returns text[] language sql immutable as $$ select string_to_array(name,'/') $$;
 `);
-for (const f of ["0001_core_schema.sql", "0002_security_views.sql"]) {
+for (const f of fs.readdirSync(`${dir}/../migrations`).filter((x) => x.endsWith(".sql")).sort()) {
   const sql = fs.readFileSync(`${dir}/../migrations/${f}`, "utf8");
   try { await db.exec(sql); console.log("OK", f); } catch (e) { console.log("FAIL", f, e.message, e.position ? sql.slice(Math.max(0, e.position - 200), e.position + 100) : ""); process.exit(1); }
 }

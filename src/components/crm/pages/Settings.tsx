@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Building2, Percent, FileText, ListChecks, Shield, MapPin, MessageSquare, Workflow, Bell, PlugZap, Database, PencilRuler, Upload, Download, RotateCcw, Plus, Trash2, Play, CheckCircle2, Package, Truck, Users } from "lucide-react";
 import { useCrm } from "@/store/crmStore";
@@ -12,7 +12,7 @@ import { uid } from "@/lib/crm/workflows";
 import { date, dateTime } from "@/lib/crm/format";
 import { COLLECTIONS, type CrmData } from "@/lib/crm/types";
 import { Page, PageHeader, Card, Button, Badge, Field, Input, Select, Textarea, Check, Switch, cn, useQuery, setQueryParam, NumberInput } from "../ui";
-import { PermissionsMatrix } from "./Resources";
+import { PermissionsMatrix, TeamList } from "./Resources";
 import { ask } from "@/components/AskHost";
 import { saveFile } from "@/lib/saveFile";
 import { toast } from "@/lib/crm/toast";
@@ -55,7 +55,7 @@ export function SettingsPage() {
           {tab === "financial" && <Financial />}
           {tab === "terms" && <Terms />}
           {tab === "statuses" && <Statuses />}
-          {tab === "permissions" && <PermissionsMatrix />}
+          {tab === "permissions" && <><TeamList /><PermissionsMatrix /></>}
           {tab === "areas" && <Areas />}
           {tab === "templates" && <Templates />}
           {tab === "automations" && <Automations />}
@@ -317,6 +317,18 @@ function Integrations() {
   );
 }
 
+function Choice({ title, text, children }: { title: string; text: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 p-3">
+      <div className="min-w-0 flex-1 basis-64">
+        <div className="text-[13px] font-medium text-slate-900">{title}</div>
+        <p className="text-[12px] text-slate-500">{text}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function DataSection() {
   const st = useCrm();
   const file = useRef<HTMLInputElement>(null);
@@ -328,8 +340,24 @@ function DataSection() {
           <Button onClick={() => { const blob = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), settings: st.settings, data: st.data }); void saveFile(new Blob([blob], { type: "application/json" }), `crm-backup-${new Date().toISOString().slice(0, 10)}.json`); }}><Download size={14} /> Export everything (JSON)</Button>
           <Button onClick={() => file.current?.click()}><Upload size={14} /> Import backup</Button>
           <input ref={file} type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const j = JSON.parse(await f.text()) as { settings: CrmSettings; data: CrmData }; if (!(await ask.confirm("Replace all current data with this backup?", true))) return; await crmRepo.replaceAll({ data: j.data, settings: j.settings }); useCrm.setState({ data: j.data, settings: j.settings }); toast("Backup restored", "success"); }} />
-          <Button variant="danger" onClick={async () => { if (await ask.confirm("Reset to the demo dataset? All local changes will be lost.", true)) await st.resetDemo(); }}><RotateCcw size={14} /> Reset demo data</Button>
         </div>
+      </Card>
+      <Card title="Start over" sub="clear the sample data so you can enter your own">
+        {crmRepo.kind === "local" ? (
+          <div className="space-y-2.5">
+            <Choice title="Start empty" text="Deletes every customer, lead, property, job, estimate, invoice, payment and employee except you. Keeps your business settings, price book, templates and automation rules." >
+              <Button variant="danger" onClick={async () => { if (await ask.confirm("Delete all customers, leads, jobs, estimates, invoices, payments and other records? Your settings, price book, templates and your own employee profile are kept. Export a backup first if you might want this data back.", true)) await st.startFresh(); }}><Trash2 size={14} /> Start empty</Button>
+            </Choice>
+            <Choice title="Erase everything" text="A completely blank CRM: also clears the price book, templates, automation rules and service plans, and resets your business details.">
+              <Button variant="danger" onClick={async () => { if (await ask.confirm("Erase EVERYTHING? This deletes every record plus your price book, templates, automation rules and service plans, and resets your business details. Only your own login stays. Export a backup first if you might want any of it back.", true)) { await st.startFresh({ everything: true }); setQueryParam("tab", "business"); } }}><Trash2 size={14} /> Erase everything</Button>
+            </Choice>
+            <Choice title="Reload sample data" text="Replace everything with the demo company to explore features.">
+              <Button onClick={async () => { if (await ask.confirm("Reset to the demo dataset? All local changes will be lost.", true)) await st.resetDemo(); }}><RotateCcw size={14} /> Reload sample data</Button>
+            </Choice>
+          </div>
+        ) : (
+          <p className="text-[12.5px] text-slate-600">Connected to your Supabase database. Bulk erase isn&apos;t available here yet; delete records individually or clear the tables in Supabase.</p>
+        )}
       </Card>
       <Card title="Records">
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12.5px] sm:grid-cols-3 lg:grid-cols-4">{counts.map(([c, n]) => <div key={c} className="flex justify-between border-b border-slate-50 py-0.5"><span className="text-slate-600">{c}</span><span className="tabular font-medium">{n.toLocaleString()}</span></div>)}</div>

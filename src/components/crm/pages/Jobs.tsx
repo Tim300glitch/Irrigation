@@ -204,7 +204,7 @@ export function JobDetail({ id }: { id: string }) {
               <div className="mt-3">
                 <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">Crew</div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                  {data.employees.filter((e) => ["technician", "crew_lead", "helper"].includes(e.role)).map((e) => (
+                  {data.employees.filter((e) => e.active && ["technician", "crew_lead", "helper"].includes(e.role)).map((e) => (
                     <Check key={e.id} label={<span className="flex items-center gap-1.5"><Avatar e={e} size={18} />{fullName(e)}</span>} checked={j.crew.includes(e.id) || j.assignedTo === e.id} onChange={(v) => set({ crew: v ? [...new Set([...j.crew, e.id])] : j.crew.filter((x) => x !== e.id) })} />
                   ))}
                 </div>

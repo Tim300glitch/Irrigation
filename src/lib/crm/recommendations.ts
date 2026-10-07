@@ -83,7 +83,7 @@ export function recommendations(data: CrmData, settings: CrmSettings, now = Date
   // 5. schedule gaps today
   if (!opts.customerId && !opts.propertyId) {
     const today = new Date(now).toDateString();
-    for (const e of data.employees.filter((x) => ["technician", "crew_lead"].includes(x.role))) {
+    for (const e of data.employees.filter((x) => x.active && ["technician", "crew_lead"].includes(x.role))) {
       const jobs = data.jobs.filter((j) => j.assignedTo === e.id && j.scheduledStart && new Date(j.scheduledStart).toDateString() === today && j.status !== "cancelled").sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
       for (let i = 0; i < jobs.length - 1; i++) {
         const end = new Date(jobs[i].scheduledStart!).getTime() + jobs[i].durationHrs * 3600000;
