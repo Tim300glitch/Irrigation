@@ -47,6 +47,7 @@ import { Toasts } from "./Toasts";
 import { relative, fullName } from "@/lib/crm/format";
 import { roleLabel } from "@/lib/crm/constants";
 import { installTheme, setDarkTheme, themeStore } from "@/lib/theme";
+import { crmRepo } from "@/lib/crm/repository";
 import { AskHost } from "@/components/AskHost";
 
 interface NavItem {
@@ -110,6 +111,24 @@ const NAV: { group: string; items: NavItem[] }[] = [
   },
   { group: "", items: [{ href: "/settings", label: "Settings", icon: Settings, perm: "settings" }] },
 ];
+
+/** Seed records use short sequential ids (cus_0001a); anything a user creates gets a long uid. */
+const SAMPLE_ID = /^cus_[0-9a-z]{5}$/;
+
+function SampleDataBanner() {
+  const sample = useCrm((s) => s.data.customers.some((c) => SAMPLE_ID.test(c.id)));
+  const canManage = useCrm((s) => !!s.session && (s.settings.rolePermissions[s.session.role] ?? []).includes("settings"));
+  const [hidden, setHidden] = useState(false);
+  const router = useRouter();
+  if (!sample || hidden || !canManage || crmRepo.kind !== "local") return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-[12.5px] text-amber-900">
+      <span className="min-w-0 flex-1">You&apos;re looking at <b>sample data</b>. Clear it when you&apos;re ready to add your own customers, jobs and team.</span>
+      <button onClick={() => router.push("/settings?tab=data")} className="rounded-md bg-amber-600 px-2.5 py-1 font-medium text-white hover:bg-amber-700">Start with a blank slate</button>
+      <button onClick={() => setHidden(true)} className="rounded-md px-2 py-1 text-amber-800 hover:bg-amber-100">Not now</button>
+    </div>
+  );
+}
 
 export function useTheme() {
   useEffect(installTheme, []);
@@ -318,6 +337,7 @@ export function CrmShell({ children, title }: { children: ReactNode; title?: str
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-y-auto" id="main">
+          {ready && !error && <SampleDataBanner />}
           {!ready ? <Loading /> : error ? <div className="p-6 text-red-600">Failed to load data: {error}</div> : session && perms.size ? children : <div className="p-6 text-slate-600">You don&apos;t have access to this area.</div>}
         </main>
       </div>

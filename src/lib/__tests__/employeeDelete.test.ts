@@ -44,3 +44,21 @@ describe("delete employee", () => {
     }
   });
 });
+
+describe("start over", () => {
+  it("Start empty keeps the price book; Erase everything clears it and resets business info", async () => {
+    await s().resetDemo();
+    const items = s().data.items.length;
+    await s().startFresh();
+    expect(s().data.customers.length).toBe(0);
+    expect(s().data.employees.length).toBe(1);
+    expect(s().data.items.length).toBe(items);
+    await s().startFresh({ everything: true });
+    expect(s().data.items.length).toBe(0);
+    expect(s().data.estimateTemplates.length).toBe(0);
+    expect(s().data.employees).toHaveLength(1);
+    expect(s().data.employees[0].firstName).toBe("Owner");
+    expect(s().settings.businessName).toBe("My Irrigation Company");
+    expect(s().session?.employeeId).toBe(s().data.employees[0].id);
+  });
+});

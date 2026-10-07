@@ -392,23 +392,9 @@ function EmployeeProfile({ e, stats, onClose }: { e: Employee; stats?: ReturnTyp
   const st = useCrm();
   const set = (p: Partial<Employee>) => st.update("employees", e.id, p);
   const [cert, setCert] = useState("");
+  const confirmDelete = useDeleteEmployee();
   const remove = async () => {
-    const check = canDeleteEmployee(st.data, e.id, st.session?.employeeId);
-    if (!check.ok) return toast(check.message, "error");
-    const now = new Date().toISOString();
-    const jobs = st.data.jobs.filter((j) => j.status !== "completed" && j.status !== "cancelled" && (j.assignedTo === e.id || j.crew.includes(e.id))).length;
-    const appts = st.data.appointments.filter((a) => a.end > now && a.employeeIds.includes(e.id)).length;
-    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
-    const open = [jobs && plural(jobs, "open job"), appts && plural(appts, "upcoming appointment")].filter(Boolean).join(" and ");
-    const msg = [
-      `Delete ${fullName(e)}?`,
-      open ? `They'll be taken off ${open}, which will need reassigning.` : "",
-      employeeHasHistory(st.data, e.id) ? "Their past jobs, hours and pay history stay in your records under their name." : "",
-    ].filter(Boolean).join(" ");
-    if (!(await ask.confirm(msg, true))) return;
-    const r = st.deleteEmployee(e.id);
-    toast(r.message, r.ok ? "success" : "error");
-    if (r.ok) onClose();
+    if (await confirmDelete(e)) onClose();
   };
   return (
     <SlideOver open onClose={onClose} width={600} title={<span className="flex items-center gap-2"><Avatar e={e} size={28} />{fullName(e)}</span>} subtitle={`${roleLabel(e.role)} · since ${date(e.hireDate)}`} footer={<div className="flex justify-start"><Button variant="danger" onClick={() => void remove()}><Trash2 size={14} /> Delete employee</Button></div>}>
@@ -505,6 +491,62 @@ function TimeTracking() {
         />
       </Card>
     </div>
+  );
+}
+
+/** Confirm (explaining what happens to open work and history), then delete. */
+export function useDeleteEmployee() {
+  const st = useCrm();
+  return async (e: Employee): Promise<boolean> => {
+    const check = canDeleteEmployee(st.data, e.id, st.session?.employeeId);
+    if (!check.ok) {
+      toast(check.message, "error");
+      return false;
+    }
+    const now = new Date().toISOString();
+    const jobs = st.data.jobs.filter((j) => j.status !== "completed" && j.status !== "cancelled" && (j.assignedTo === e.id || j.crew.includes(e.id))).length;
+    const appts = st.data.appointments.filter((a) => a.end > now && a.employeeIds.includes(e.id)).length;
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    const open = [jobs && plural(jobs, "open job"), appts && plural(appts, "upcoming appointment")].filter(Boolean).join(" and ");
+    const msg = [
+      `Delete ${fullName(e)}?`,
+      open ? `They'll be taken off ${open}, which will need reassigning.` : "",
+      employeeHasHistory(st.data, e.id) ? "Their past jobs, hours and pay history stay in your records under their name." : "",
+    ].filter(Boolean).join(" ");
+    if (!(await ask.confirm(msg, true))) return false;
+    const r = st.deleteEmployee(e.id);
+    toast(r.message, r.ok ? "success" : "error");
+    return r.ok;
+  };
+}
+
+/** Team list for Settings → Employees & permissions: role changes and delete. */
+export function TeamList() {
+  const st = useCrm();
+  const router = useRouter();
+  const confirmDelete = useDeleteEmployee();
+  const team = st.data.employees.filter((e) => !e.archived);
+  return (
+    <Card
+      pad={false}
+      title="Employees"
+      sub={`${team.length} on the team`}
+      actions={<Button size="sm" onClick={() => router.push("/employees")}><Pencil size={13} /> Edit details</Button>}
+    >
+      <ul className="divide-y divide-slate-100">
+        {team.map((e) => (
+          <li key={e.id} className="flex items-center gap-3 px-4 py-2">
+            <Avatar e={e} size={28} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-medium text-slate-900">{fullName(e)}{e.id === st.session?.employeeId && <span className="ml-1.5 text-[11px] font-normal text-slate-500">(you)</span>}{!e.active && <Badge className="ml-1.5">Inactive</Badge>}</div>
+              <div className="truncate text-[11.5px] text-slate-500">{[e.email, e.phone].filter(Boolean).join(" · ") || "No contact info"}</div>
+            </div>
+            <Select value={e.role} onChange={(ev) => st.update("employees", e.id, { role: ev.target.value as Role })} options={ROLES.map((r) => ({ value: r.id, label: r.label }))} className="h-8 w-36 text-[12.5px]" aria-label={`Role for ${fullName(e)}`} />
+            <button onClick={() => void confirmDelete(e)} className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Delete ${fullName(e)}`} title="Delete employee"><Trash2 size={15} /></button>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }
 

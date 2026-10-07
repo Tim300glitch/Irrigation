@@ -100,7 +100,8 @@ export interface CrmState {
   runAutomations: () => number;
   linkDesigns: () => Promise<void>;
   resetDemo: () => Promise<void>;
-  startFresh: () => Promise<void>;
+  /** clear all records; `everything` also clears the price book, templates and rules and resets business info */
+  startFresh: (opts?: { everything?: boolean }) => Promise<void>;
   deleteEmployee: (id: string) => { ok: boolean; message: string };
 }
 
@@ -594,16 +595,23 @@ export const useCrm = create<CrmState>((set, get) => ({
     return { ok: true, message: `${name} deleted` };
   },
 
-  startFresh: async () => {
-    const { data, settings, session } = get();
+  startFresh: async (opts) => {
+    const { data, session } = get();
+    const everything = !!opts?.everything;
     const me = data.employees.find((e) => e.id === session?.employeeId) ?? data.employees.find((e) => e.role === "owner");
     const next = emptyData();
     // keep the setup a business reuses; clear every customer, job and transaction
-    for (const c of KEEP_ON_FRESH_START) (next as Record<string, unknown>)[c] = data[c];
-    if (me) next.employees = [{ ...me, truckId: undefined }];
+    if (!everything) for (const c of KEEP_ON_FRESH_START) (next as Record<string, unknown>)[c] = data[c];
+    if (me) next.employees = [everything ? { ...me, firstName: "Owner", lastName: "", email: "", phone: "", certifications: [], truckId: undefined } : { ...me, truckId: undefined }];
+    const settings = everything ? blankBusinessSettings() : get().settings;
     await crmRepo.replaceAll({ data: next, settings });
-    set({ data: next });
-    toast("All records cleared", "success");
+    set({ data: next, settings });
+    if (me && everything) {
+      const s = demoSession(me.id, me.role, "");
+      setSession(s);
+      set({ session: s });
+    }
+    toast(everything ? "Everything erased. Add your business details in Settings → Business info." : "All records cleared", "success");
   },
 }));
 
@@ -628,6 +636,11 @@ export function canDeleteEmployee(d: CrmData, id: string, meId?: string): { ok: 
   if (id === meId) return { ok: false, message: "You can't delete yourself. Ask another owner or admin." };
   if (e.role === "owner" && !d.employees.some((x) => x.id !== id && x.role === "owner" && !x.archived)) return { ok: false, message: "This is the only owner. Make someone else an owner first." };
   return { ok: true, message: "" };
+}
+
+/** Default settings with the sample company's details removed. */
+function blankBusinessSettings(): CrmSettings {
+  return { ...defaultSettings(), businessName: "My Irrigation Company", legalName: "", phone: "", email: "", website: "", license: "", address: { street: "", city: "", state: "", zip: "" } };
 }
 
 /** Reference data kept by "Start empty": price book, templates, automation rules, plan offerings. */
