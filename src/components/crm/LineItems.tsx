@@ -16,6 +16,17 @@ const KINDS: { value: ItemKind; label: string }[] = [
   { value: "subcontract", label: "Sub" },
   { value: "other", label: "Other" },
 ];
+/** Default unit per line type; a unit the user typed themselves (e.g. "ft") is left alone. */
+const KIND_UNIT: Record<ItemKind, string> = { material: "ea", labor: "hr", equipment: "day", fee: "ea", subcontract: "ea", other: "ea" };
+const DEFAULT_UNITS = new Set(["", ...Object.values(KIND_UNIT)]);
+
+function kindChange(i: LineItem, kind: ItemKind, laborRate: number): Partial<LineItem> {
+  const patch: Partial<LineItem> = { kind };
+  if (DEFAULT_UNITS.has(i.unit.trim())) patch.unit = KIND_UNIT[kind];
+  if (kind === "labor" && !i.unitPrice) patch.unitPrice = laborRate;
+  return patch;
+}
+
 const KIND_DOT: Record<ItemKind, string> = { material: "bg-sky-500", labor: "bg-violet-500", equipment: "bg-amber-500", fee: "bg-slate-400", subcontract: "bg-orange-500", other: "bg-slate-400" };
 
 export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost = true, readOnly, usedQty, compact }: { items: T[]; onChange: (items: T[]) => void; showCost?: boolean; readOnly?: boolean; usedQty?: boolean; compact?: boolean }) {
@@ -55,8 +66,8 @@ export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost 
                       </div>
                     ) : (
                       <>
-                        <input value={i.name} onChange={(e) => upd(i.id, { name: e.target.value })} className="h-7 w-full rounded border border-transparent bg-transparent px-1.5 text-[13px] text-slate-900 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:outline-none" />
-                        <input value={i.description} placeholder="Description (optional)" onChange={(e) => upd(i.id, { description: e.target.value })} className="h-6 w-full rounded border border-transparent bg-transparent px-1.5 text-[11.5px] text-slate-500 placeholder:text-slate-300 hover:border-slate-200 focus:border-brand-400 focus:bg-white focus:outline-none" />
+                        <input value={i.name} onChange={(e) => upd(i.id, { name: e.target.value })} className="h-7 w-full rounded border border-transparent bg-transparent px-1.5 text-[13px] text-slate-900 hover:border-slate-200 focus:border-brand-400 focus:outline-none" />
+                        <input value={i.description} placeholder="Description (optional)" onChange={(e) => upd(i.id, { description: e.target.value })} className="h-6 w-full rounded border border-transparent bg-transparent px-1.5 text-[11.5px] text-slate-500 placeholder:text-slate-300 hover:border-slate-200 focus:border-brand-400 focus:outline-none" />
                       </>
                     )}
                   </td>
@@ -67,7 +78,7 @@ export function LineItemsEditor<T extends LineItem>({ items, onChange, showCost 
                         {KINDS.find((k) => k.value === i.kind)?.label}
                       </span>
                     ) : (
-                      <select value={i.kind} onChange={(e) => upd(i.id, { kind: e.target.value as ItemKind })} className="h-7 w-full rounded border border-slate-200 bg-white px-1 text-[12px]">
+                      <select value={i.kind} onChange={(e) => upd(i.id, kindChange(i, e.target.value as ItemKind, settings.laborRate))} className="h-7 w-full rounded border border-slate-200 bg-white px-1 text-[12px]">
                         {KINDS.map((k) => (
                           <option key={k.value} value={k.value}>
                             {k.label}
