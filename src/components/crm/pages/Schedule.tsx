@@ -34,7 +34,7 @@ export function SchedulePage() {
   const { drag, setDrag } = useDnD();
   const emp = byId(data.employees);
   const techs = data.employees.filter((e) => e.active && fieldRoles.includes(e.role));
-  const unscheduled = data.jobs.filter((j) => j.status === "unscheduled").sort((a, b) => (a.priority === "urgent" ? -1 : 0) - (b.priority === "urgent" ? -1 : 0));
+  const unscheduled = data.jobs.filter((j) => !j.archived && j.status === "unscheduled").sort((a, b) => (a.priority === "urgent" ? -1 : 0) - (b.priority === "urgent" ? -1 : 0));
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor), i)) : [new Date(anchor)];
   const step = view === "week" ? 7 : view === "month" ? 30 : 1;
   const title = view === "month" ? new Date(anchor).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : view === "week" ? `${days[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${days[6].toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : new Date(anchor).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
@@ -72,7 +72,7 @@ export function SchedulePage() {
       </div>
       <div className="grid gap-3 xl:grid-cols-[1fr_280px]">
         <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          {(view === "week" || view === "day") && <TimeGrid days={days} jobs={data.jobs} appts={data.appointments} colorOf={colorOf} drag={drag} setDrag={setDrag} onDrop={(d) => drop(d)} now={now} />}
+          {(view === "week" || view === "day") && <TimeGrid days={days} jobs={data.jobs.filter((j) => !j.archived)} appts={data.appointments} colorOf={colorOf} drag={drag} setDrag={setDrag} onDrop={(d) => drop(d)} now={now} />}
           {view === "month" && <MonthGrid anchor={anchor} colorOf={colorOf} setDrag={setDrag} onDrop={(d) => drop(d)} onDay={(d) => { setAnchor(d.getTime()); setView("day"); }} />}
           {(view === "tech" || view === "crew") && <ResourceGrid day={new Date(anchor)} rows={view === "tech" ? techs : crews(techs, data.employees)} colorOf={colorOf} drag={drag} setDrag={setDrag} onDrop={drop} now={now} />}
         </div>
@@ -227,7 +227,7 @@ function MonthGrid({ anchor, colorOf, setDrag, onDrop, onDay }: { anchor: number
       </div>
       <div className="grid grid-cols-7">
         {cells.map((d) => {
-          const jobs = data.jobs.filter((j) => j.scheduledStart && isoDate(new Date(j.scheduledStart)) === isoDate(d) && j.status !== "cancelled").sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
+          const jobs = data.jobs.filter((j) => !j.archived && j.scheduledStart && isoDate(new Date(j.scheduledStart)) === isoDate(d) && j.status !== "cancelled").sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
           const other = d.getMonth() !== first.getMonth();
           const today = isoDate(d) === isoDate(now);
           return (
@@ -263,7 +263,7 @@ function ResourceGrid({ day, rows, colorOf, drag, setDrag, onDrop, now }: { day:
           {hours.map((h) => <div key={h} className="shrink-0 border-l border-slate-100 py-2 pl-1 text-[10.5px] text-slate-400" style={{ width: W }}>{h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`}</div>)}
         </div>
         {rows.map((e) => {
-          const jobs = data.jobs.filter((j) => (j.assignedTo === e.id || j.crew.includes(e.id)) && j.scheduledStart && isoDate(new Date(j.scheduledStart)) === isoDate(day) && j.status !== "cancelled");
+          const jobs = data.jobs.filter((j) => !j.archived && (j.assignedTo === e.id || j.crew.includes(e.id)) && j.scheduledStart && isoDate(new Date(j.scheduledStart)) === isoDate(day) && j.status !== "cancelled");
           const booked = jobs.reduce((s, j) => s + j.durationHrs, 0);
           const shift = (Number(e.shiftEnd.split(":")[0]) - Number(e.shiftStart.split(":")[0])) || 8;
           return (
@@ -338,8 +338,8 @@ export function DispatchPage() {
   const techs = data.employees.filter((e) => e.active && fieldRoles.includes(e.role));
   const cust = byId(data.customers);
   const prop = byId(data.properties);
-  const todays = data.jobs.filter((j) => j.scheduledStart && isoDate(new Date(j.scheduledStart)) === today && j.status !== "cancelled");
-  const unassigned = data.jobs.filter((j) => j.status === "unscheduled" || (OPEN_JOB.includes(j.status) && !j.assignedTo));
+  const todays = data.jobs.filter((j) => !j.archived && j.scheduledStart && isoDate(new Date(j.scheduledStart)) === today && j.status !== "cancelled");
+  const unassigned = data.jobs.filter((j) => !j.archived && j.status === "unscheduled" || (OPEN_JOB.includes(j.status) && !j.assignedTo));
   const urgent = unassigned.filter((j) => j.priority === "urgent" || j.priority === "high");
   const assign = (techId: string) => {
     if (!drag) return;

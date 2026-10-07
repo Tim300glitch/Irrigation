@@ -76,7 +76,7 @@ export function FieldHome() {
   const tech = data.employees.find((e) => e.id === techId);
   const cust = byId(data.customers);
   const prop = byId(data.properties);
-  const mine = data.jobs.filter((j) => (j.assignedTo === techId || j.crew.includes(techId)) && j.scheduledStart && j.status !== "cancelled");
+  const mine = data.jobs.filter((j) => !j.archived && (j.assignedTo === techId || j.crew.includes(techId)) && j.scheduledStart && j.status !== "cancelled");
   const today = mine.filter((j) => isoDate(new Date(j.scheduledStart!)) === isoDate(now)).sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
   const upcoming = mine.filter((j) => new Date(j.scheduledStart!).getTime() > new Date(isoDate(now) + "T23:59:59").getTime()).sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!)).slice(0, 25);
   const active = today.find((j) => ["en_route", "arrived", "in_progress"].includes(j.status));

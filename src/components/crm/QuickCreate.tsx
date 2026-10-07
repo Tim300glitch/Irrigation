@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { create } from "zustand";
 import { Filter, UserPlus, FileText, Wrench, Receipt, House, ClipboardCheck, X } from "lucide-react";
 import { useCrm } from "@/store/crmStore";
-import type { LeadSource, ServiceType, CustomerType } from "@/lib/crm/types";
+import type { LeadSource, ServiceType, CustomerType, JobItem } from "@/lib/crm/types";
 import { LEAD_SOURCES, SERVICE_TYPES, CUSTOMER_TYPES } from "@/lib/crm/constants";
-import { optionsFromTemplate } from "@/lib/crm/workflows";
+import { optionsFromTemplate, defaultLines, uid } from "@/lib/crm/workflows";
 import { customerName, money } from "@/lib/crm/format";
-import { lineTotals } from "@/lib/crm/calc";
+import { lineTotals, r2 } from "@/lib/crm/calc";
 import { Button, Modal, Field, Input, Select, Textarea, cn } from "./ui";
-import { CustomerPicker, PropertyPicker, EmployeePicker, Combo } from "./pickers";
+import { CustomerPicker, PropertyPicker, EmployeePicker, Combo, CrewPicker } from "./pickers";
+import { LineItemsEditor } from "./LineItems";
 import { toast } from "@/lib/crm/toast";
 
 export type QuickKind = "lead" | "customer" | "estimate" | "job" | "invoice" | "property" | "audit";
@@ -27,7 +28,7 @@ export const QUICK_ACTIONS: { kind: QuickKind; label: string; icon: typeof Filte
 
 interface QCState {
   kind: QuickKind | null;
-  ctx: { customerId?: string; propertyId?: string; leadId?: string; start?: string; assignedTo?: string };
+  ctx: { customerId?: string; propertyId?: string; leadId?: string; start?: string; assignedTo?: string; serviceType?: ServiceType };
   menu: boolean;
   open: (k: QuickKind, ctx?: QCState["ctx"]) => void;
   close: () => void;
@@ -229,7 +230,9 @@ function EstimateForm({ onClose }: { onClose: () => void }) {
   const [propertyId, setPropertyId] = useState(ctx.propertyId);
   const [tpl, setTpl] = useState<string>("");
   const [title, setTitle] = useState("");
+  const [serviceType, setServiceType] = useState<ServiceType>(ctx.serviceType ?? "sprinkler_repair");
   const template = data.estimateTemplates.find((t) => t.id === tpl);
+  const kit = defaultLines(data.items, serviceType);
   const itemMap = new Map(data.items.map((i) => [i.id, i]));
   return (
     <Modal
@@ -245,7 +248,8 @@ function EstimateForm({ onClose }: { onClose: () => void }) {
             variant="primary"
             disabled={!customerId || !propertyId}
             onClick={() => {
-              const e = createEstimate({ customerId: customerId!, propertyId: propertyId!, leadId: ctx.leadId, title: title || template?.name || "Irrigation estimate", serviceType: template?.serviceType ?? "sprinkler_repair", ...(template ? { options: optionsFromTemplate(template, itemMap) } : {}), depositPct: template?.serviceType === "new_install" || template?.serviceType === "drip_conversion" ? 50 : 0 });
+              const type = template?.serviceType ?? serviceType;
+              const e = createEstimate({ customerId: customerId!, propertyId: propertyId!, leadId: ctx.leadId, title: title || template?.name || "Irrigation estimate", serviceType: type, options: template ? optionsFromTemplate(template, itemMap) : [{ id: uid("opt"), name: "Option 1", description: "", items: defaultLines(data.items, type) }], depositPct: type === "new_install" || type === "drip_conversion" ? 50 : 0 });
               onClose();
               router.push(`/estimates/${e.id}`);
             }}
@@ -264,9 +268,16 @@ function EstimateForm({ onClose }: { onClose: () => void }) {
             <PropertyPicker customerId={customerId} value={propertyId} onChange={setPropertyId} />
           </Field>
         </div>
-        <Field label="Title">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={template?.name ?? "e.g. Valve replacement — zone 3"} />
-        </Field>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Field label="Title">
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={template?.name ?? "e.g. Valve replacement — zone 3"} />
+          </Field>
+          {!tpl && (
+            <Field label="Job type" hint={kit.length ? `Starts with ${kit.length} default item${kit.length === 1 ? "" : "s"} for this type` : undefined}>
+              <Select value={serviceType} onChange={(e) => setServiceType(e.target.value as ServiceType)} options={serviceOptions} />
+            </Field>
+          )}
+        </div>
         <div>
           <div className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">Template</div>
           <div className="grid gap-1.5 sm:grid-cols-3">
@@ -297,30 +308,48 @@ function EstimateForm({ onClose }: { onClose: () => void }) {
 function JobForm({ onClose }: { onClose: () => void }) {
   const ctx = useQuickCreate((s) => s.ctx);
   const createJob = useCrm((s) => s.createJob);
+  const catalog = useCrm((s) => s.data.items);
+  const settings = useCrm((s) => s.settings);
   const router = useRouter();
-  const [f, setF] = useState({ customerId: ctx.customerId, propertyId: ctx.propertyId, title: "", serviceType: "sprinkler_repair" as ServiceType, date: ctx.start?.slice(0, 10) ?? "", time: ctx.start ? new Date(ctx.start).toTimeString().slice(0, 5) : "08:00", durationHrs: 2, assignedTo: ctx.assignedTo ?? "", priority: "normal", scope: "" });
+  const initialType = ctx.serviceType ?? "sprinkler_repair";
+  const [f, setF] = useState({ customerId: ctx.customerId, propertyId: ctx.propertyId, title: "", serviceType: initialType, date: ctx.start?.slice(0, 10) ?? "", time: ctx.start ? new Date(ctx.start).toTimeString().slice(0, 5) : "08:00", durationHrs: 2, assignedTo: ctx.assignedTo ?? "", crew: [] as string[], priority: "normal", scope: "" });
+  const [items, setItems] = useState<JobItem[]>(() => defaultLines(catalog, initialType));
+  const [touched, setTouched] = useState(false);
+  const t = lineTotals(items);
+  const tax = r2(items.filter((i) => i.taxable).reduce((s, i) => s + i.qty * i.unitPrice, 0) * (settings.taxPct / 100));
+  const setType = (serviceType: ServiceType) => {
+    setF({ ...f, serviceType });
+    // swap in the new type's default kit until the user starts editing lines
+    if (!touched) setItems(defaultLines(catalog, serviceType));
+  };
   return (
     <Modal
       open
       onClose={onClose}
       title="New job"
-      width={620}
+      subtitle="Build out the job: who, when, what type, and the materials and labor it needs."
+      width={980}
       footer={
-        <>
+        <div className="flex w-full flex-wrap items-center gap-3">
+          <span className="text-[12.5px] text-slate-600">
+            {items.length} line{items.length === 1 ? "" : "s"} · Price <b className="tabular text-slate-900">{money(t.subtotal)}</b>
+            {tax > 0 && <> + {money(tax)} tax</>}
+          </span>
+          <span className="flex-1" />
           <Button onClick={onClose}>Cancel</Button>
           <Button
             variant="primary"
             disabled={!f.customerId || !f.propertyId || !f.title.trim()}
             onClick={() => {
               const start = f.date ? new Date(`${f.date}T${f.time || "08:00"}`).toISOString() : undefined;
-              const j = createJob({ customerId: f.customerId!, propertyId: f.propertyId!, title: f.title, serviceType: f.serviceType, scheduledStart: start, durationHrs: f.durationHrs, assignedTo: f.assignedTo || undefined, priority: f.priority as "normal", scope: f.scope });
+              const j = createJob({ customerId: f.customerId!, propertyId: f.propertyId!, title: f.title, serviceType: f.serviceType, scheduledStart: start, durationHrs: f.durationHrs, assignedTo: f.assignedTo || undefined, crew: f.crew.filter((x) => x !== f.assignedTo), priority: f.priority as "normal", scope: f.scope, items });
               onClose();
               router.push(`/jobs/${j.id}`);
             }}
           >
             Create job
           </Button>
-        </>
+        </div>
       }
     >
       <div className="space-y-3">
@@ -332,32 +361,44 @@ function JobForm({ onClose }: { onClose: () => void }) {
             <PropertyPicker customerId={f.customerId} value={f.propertyId} onChange={(propertyId) => setF((x) => ({ ...x, propertyId }))} />
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          <Field label="Title" required className="col-span-3 sm:col-span-2">
+        <div className="grid grid-cols-6 gap-2">
+          <Field label="Title" required className="col-span-6 sm:col-span-3">
             <Input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Valve stuck on — zone 3" />
           </Field>
-          <Field label="Priority" className="col-span-3 sm:col-span-1">
+          <Field label="Job type" className="col-span-4 sm:col-span-2">
+            <Select value={f.serviceType} onChange={(e) => setType(e.target.value as ServiceType)} options={serviceOptions} />
+          </Field>
+          <Field label="Priority" className="col-span-2 sm:col-span-1">
             <Select value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })} options={["low", "normal", "high", "urgent"].map((v) => ({ value: v, label: v[0].toUpperCase() + v.slice(1) }))} />
           </Field>
-          <Field label="Service type" className="col-span-3">
-            <Select value={f.serviceType} onChange={(e) => setF({ ...f, serviceType: e.target.value as ServiceType })} options={serviceOptions} />
-          </Field>
-          <Field label="Date">
+          <Field label="Date" className="col-span-2">
             <Input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
           </Field>
-          <Field label="Start">
+          <Field label="Start" className="col-span-2">
             <Input type="time" value={f.time} onChange={(e) => setF({ ...f, time: e.target.value })} />
           </Field>
-          <Field label="Hours">
+          <Field label="Hours" className="col-span-2">
             <Input type="number" min={0.5} step={0.5} value={f.durationHrs} onChange={(e) => setF({ ...f, durationHrs: Number(e.target.value) })} />
           </Field>
-          <Field label="Technician" className="col-span-3">
-            <EmployeePicker value={f.assignedTo} onChange={(assignedTo) => setF({ ...f, assignedTo })} roles={["technician", "crew_lead", "estimator", "owner"]} />
+          <Field label="Lead technician" className="col-span-6 sm:col-span-2">
+            <EmployeePicker value={f.assignedTo} onChange={(assignedTo) => setF({ ...f, assignedTo, crew: f.crew.filter((x) => x !== assignedTo) })} />
           </Field>
+          {/* not a <Field>: a <label> around buttons forwards stray clicks to the first one */}
+          <div className="col-span-6 min-w-0 sm:col-span-4" role="group" aria-label="Crew">
+            <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">Crew</span>
+            <CrewPicker value={f.crew} lead={f.assignedTo || undefined} onChange={(crew) => setF({ ...f, crew })} />
+          </div>
         </div>
         <Field label="Scope of work">
-          <Textarea value={f.scope} onChange={(e) => setF({ ...f, scope: e.target.value })} />
+          <Textarea value={f.scope} onChange={(e) => setF({ ...f, scope: e.target.value })} rows={2} />
         </Field>
+        <div>
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Materials, labor & pricing</span>
+            <span className="text-[11.5px] text-slate-500">Materials {money(t.materialPrice)} · Labor {money(t.laborPrice)} · Margin {t.subtotal ? Math.round(((t.subtotal - t.materialCost - t.laborCost - t.equipmentCost) / t.subtotal) * 100) : 0}%</span>
+          </div>
+          <LineItemsEditor items={items} onChange={(next) => { setItems(next); setTouched(true); }} serviceType={f.serviceType} />
+        </div>
       </div>
     </Modal>
   );

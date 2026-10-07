@@ -131,9 +131,24 @@ export function priceBook(): InventoryItem[] {
       preferredVendorId: vendor || undefined,
       laborHrsPerUnit: laborHrs,
       active: true,
+      ...EXTRAS[id],
     };
   });
 }
+
+/** Options, links and default kits on a few sample items. */
+const EXTRAS: Record<string, Partial<InventoryItem>> = {
+  itm_prohc: {
+    options: [{ name: "Zones", values: [{ label: "6", cost: 198 }, { label: "12", cost: 238 }, { label: "24", cost: 389 }] }, { name: "Mount", values: [{ label: "Indoor" }, { label: "Outdoor" }] }],
+    links: [{ label: "Hunter product page", url: "https://www.hunterindustries.com/irrigation-product/controllers/pro-hc" }],
+    defaultFor: [{ serviceType: "smart_controller", qty: 1 }],
+  },
+  itm_w185: {
+    options: [{ name: "Wire type", values: [{ label: "Multi-strand direct burial" }, { label: "Single-strand UF" }] }, { name: "Gauge", values: [{ label: "18 AWG" }, { label: "14 AWG", cost: 0.58 }] }],
+    links: [{ label: "Paige spec sheet", url: "https://www.paigeelectric.com" }],
+  },
+  itm_rainclik: { defaultFor: [{ serviceType: "smart_controller", qty: 1 }] },
+};
 
 /* ───────────────────────── Estimate templates ───────────────────────── */
 
