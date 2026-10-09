@@ -1,5 +1,7 @@
 # DeltaLine Irrigation — CRM & Design Studio
 
+> **Public marketing website:** see [`website/`](website/README.md) — a static React + Vite landing page with its own deploy guide.
+
 The operating system for an irrigation contractor: leads, customers, properties, zone-level
 irrigation system records and maps, Good/Better/Best estimates with e-signature, jobs, scheduling,
 dispatch, a mobile technician app, invoicing and payments, inventory and truck stock, time
