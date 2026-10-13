@@ -19,6 +19,7 @@ import { getProduct, getNozzle } from "../catalog/sprinklers";
 import { dripCalc } from "../irrigation/drip";
 import { pipeSizeLabel } from "../units/units";
 import { otherEnd } from "../hydraulics/network";
+import { FITTING_DEFS } from "../plan/symbols";
 
 export type TakeoffCategory = "Pipe" | "Sprinklers" | "Nozzles" | "Valves" | "Fittings" | "Drip" | "Wire & Electrical" | "Controllers" | "Backflow & Equipment" | "Boxes & Sleeves" | "Misc";
 
@@ -33,21 +34,7 @@ export interface TakeoffItem {
   wastePct: number;
 }
 
-export const FITTING_NAMES: Record<string, string> = {
-  tee: "Tee (slip)",
-  "tee-fpt": "Tee slip×slip×FPT",
-  "ell-fpt": "Ell 90° slip×FPT",
-  cross: "Cross",
-  elbow90: "Ell 90° (slip)",
-  elbow45: "Ell 45° (slip)",
-  coupling: "Coupling (slip)",
-  reducer: "Reducer bushing",
-  cap: "Cap (slip)",
-  "male-adapter": "Male adapter slip×MPT",
-  "female-adapter": "Female adapter slip×FPT",
-  union: "Union",
-  "swing-joint": "Swing joint assembly",
-};
+export const FITTING_NAMES: Record<string, string> = Object.fromEntries(FITTING_DEFS.map((f) => [f.type, f.takeoffName]));
 
 export function computeTakeoff(project: Project, hyd: HydraulicResult): TakeoffItem[] {
   const items = new Map<string, TakeoffItem>();

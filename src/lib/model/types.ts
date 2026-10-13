@@ -233,6 +233,7 @@ export interface Manifold {
 }
 
 export type FittingType =
+  // slip (glue) fittings
   | "tee"
   | "cross"
   | "elbow90"
@@ -240,9 +241,29 @@ export type FittingType =
   | "coupling"
   | "reducer"
   | "cap"
+  // threaded fittings
   | "male-adapter"
   | "female-adapter"
+  | "tee-fpt"
+  | "tee-thread"
+  | "ell-fpt"
+  | "elbow90-thread"
+  | "street-elbow90"
+  | "elbow45-thread"
+  | "street-elbow45"
+  | "coupling-thread"
+  | "reducer-bushing-thread"
+  | "cap-thread"
+  | "plug"
+  | "nipple"
+  | "close-nipple"
+  | "hex-nipple"
+  | "riser-nipple"
+  | "cross-thread"
   | "union"
+  | "union-thread"
+  | "barb-ell"
+  | "barb-adapter"
   | "swing-joint";
 
 export interface Fitting {

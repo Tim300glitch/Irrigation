@@ -49,6 +49,23 @@ const FIT_BASE: Record<string, number> = {
   "female-adapter": 0.75,
   union: 4.5,
   cross: 3.5,
+  "tee-thread": 1.6,
+  "elbow90-thread": 1.3,
+  "street-elbow90": 1.4,
+  "elbow45-thread": 1.4,
+  "street-elbow45": 1.5,
+  "coupling-thread": 0.9,
+  "reducer-bushing-thread": 0.9,
+  "cap-thread": 0.7,
+  plug: 0.6,
+  nipple: 0.8,
+  "close-nipple": 0.6,
+  "hex-nipple": 1.1,
+  "riser-nipple": 0.5,
+  "cross-thread": 4,
+  "union-thread": 5,
+  "barb-ell": 0.7,
+  "barb-adapter": 0.6,
   poc: 35,
 };
 const SIZE_MULT: Record<string, number> = { "0.5": 0.5, "0.75": 0.7, "1": 1, "1.25": 1.5, "1.5": 1.9, "2": 2.8, "2.5": 6, "3": 8, "4": 14 };
@@ -84,7 +101,6 @@ export function defaultMaterialProducts(): MaterialProduct[] {
   out.push(p("fittings", '3/4" swing joint assembly', "ea", 6.75, "fitting:swing-joint:0.75"));
   out.push(p("fittings", '1" swing joint assembly', "ea", 9.5, "fitting:swing-joint:1"));
   out.push(p("fittings", '1/2" swing joint assembly', "ea", 4.5, "fitting:swing-joint:0.5"));
-  out.push(p("fittings", '1/2" barbed ell × MPT', "ea", 0.35, "fitting:barb-ell:0.5"));
   for (const [type, base] of Object.entries(FIT_BASE)) {
     for (const s of ["0.5", "0.75", "1", "1.25", "1.5", "2", "2.5", "3"]) {
       const name = type === "poc" ? "Point-of-connection kit" : FITTING_NAMES[type] ?? type;
