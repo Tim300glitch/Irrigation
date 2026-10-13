@@ -330,8 +330,14 @@ export interface WaterSource {
 
 export interface ZoneSchedule {
   daysPerWeek: number;
+  /** watering days of the week (0 = Sun … 6 = Sat); when set, its length is the days per week */
+  days?: number[];
+  /** controller start time for this zone, "HH:MM" (24 h) */
+  startTime?: string;
   /** manual runtime override in minutes per watering day */
   runtimeOverrideMin?: number;
+  /** manual number of cycles (cycle & soak) per watering day */
+  cyclesOverride?: number;
   efficiencyOverride?: number;
 }
 
