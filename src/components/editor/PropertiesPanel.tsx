@@ -5,7 +5,7 @@ import { useAnalysis } from "@/store/analysisStore";
 import type { RefPoint, Area, AreaType, BackflowType, DripArea, Equipment, Fitting, FittingType, LineObj, MeterSize, Pipe, PipeKind, PipeMaterial, PlantType, Project, SoilType, Sprinkler, SunExposure, TextLabel, Valve, ValveType, WaterSource, Dimension, Plant } from "@/lib/model/types";
 import { findObject } from "@/lib/editor/ops";
 import { Badge, Button, Field, NumberInput, Section, Select, Stat, TextInput, Toggle, LengthInput } from "../ui";
-import { allProducts, getProduct, getNozzle } from "@/lib/catalog/sprinklers";
+import { allProducts, getProduct, getNozzle, groupedProductOptions } from "@/lib/catalog/sprinklers";
 import { headPerformance } from "@/lib/irrigation/sprinkler";
 import { formatArea, formatFeetInches, formatFlow, formatPressure, pipeSizeLabel } from "@/lib/units/units";
 import { polygonArea, polygonPerimeter, polylineLength } from "@/lib/geometry/geometry";
@@ -151,7 +151,7 @@ function SprinklerProps({ s, project, header }: { s: Sprinkler; project: Project
                   if (p.category === "custom" && !o.custom) o.custom = { radius: 15, flowGpm: 2, pressure: 30, minPressure: 20, maxPressure: 70 };
                 });
               }}
-              options={allProducts().map((p) => ({ value: p.id, label: `${p.manufacturer} ${p.model}` }))}
+              options={groupedProductOptions(allProducts())}
             />
           </Field>
           {product.category !== "custom" ? (

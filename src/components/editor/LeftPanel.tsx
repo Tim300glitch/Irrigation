@@ -5,7 +5,7 @@ import { useEditorStore, type Tool } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
 import type { AreaType, EquipmentType, LineType, PipeKind, PipeMaterial, ValveType } from "@/lib/model/types";
 import { AREA_DEFAULTS } from "@/lib/model/factory";
-import { allProducts, getProduct } from "@/lib/catalog/sprinklers";
+import { allProducts, getProduct, groupedProductOptions } from "@/lib/catalog/sprinklers";
 import { FITTING_DEFS, EQUIPMENT_NAMES, HEAD_NAMES } from "@/lib/plan/symbols";
 import { sizesFor } from "@/lib/hydraulics/pipes";
 import { pipeSizeLabel } from "@/lib/units/units";
@@ -84,7 +84,6 @@ export function LeftPanel() {
   };
   const product = getProduct(opts.sprinklerProduct);
   const products = allProducts();
-  const cats = [...new Set(products.map((p) => p.category))];
   return (
     <aside className="flex h-full w-[248px] shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white" aria-label="Drawing tools and library">
       <Group title="Site drawing">
@@ -126,7 +125,7 @@ export function LeftPanel() {
             const nz = p.nozzles[Math.min(p.nozzles.length - 1, Math.floor(p.nozzles.length / 2))];
             use("sprinkler", { sprinklerProduct: v, sprinklerNozzle: nz.id, sprinklerArc: p.arcAdjustable ? opts.sprinklerArc : p.arcMax });
           }}
-          options={cats.flatMap((c) => products.filter((p) => p.category === c).map((p) => ({ value: p.id, label: `${HEAD_NAMES[c]} — ${p.model}` })))}
+          options={groupedProductOptions(products)}
         />
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           <Select value={opts.sprinklerNozzle} onChange={(v) => use("sprinkler", { sprinklerNozzle: v })} options={product.nozzles.map((n) => ({ value: n.id, label: `${n.name} · ${n.radius}'` }))} />
