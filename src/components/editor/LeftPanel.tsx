@@ -3,10 +3,10 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Home, Trees, Fence, Square, Circle, Pentagon, Droplets, Spline, GitMerge, Box, Cpu, CloudRain, Gauge, Filter, ShieldCheck, Plug, Waves, Sprout, Type, Image as ImageIcon, Crosshair } from "lucide-react";
 import { useEditorStore, type Tool } from "@/store/editorStore";
 import { useProjectStore } from "@/store/projectStore";
-import type { AreaType, EquipmentType, FittingType, LineType, PipeKind, PipeMaterial, ValveType } from "@/lib/model/types";
+import type { AreaType, EquipmentType, LineType, PipeKind, PipeMaterial, ValveType } from "@/lib/model/types";
 import { AREA_DEFAULTS } from "@/lib/model/factory";
 import { allProducts, getProduct } from "@/lib/catalog/sprinklers";
-import { FITTING_LABELS, EQUIPMENT_NAMES, HEAD_NAMES } from "@/lib/plan/symbols";
+import { FITTING_DEFS, EQUIPMENT_NAMES, HEAD_NAMES } from "@/lib/plan/symbols";
 import { sizesFor } from "@/lib/hydraulics/pipes";
 import { pipeSizeLabel } from "@/lib/units/units";
 import { cn, Select, Toggle } from "../ui";
@@ -56,7 +56,6 @@ const VALVES: { t: ValveType; label: string }[] = [
   { t: "prv", label: "Pressure-regulating" },
   { t: "isolation", label: "Isolation valve" },
 ];
-const FITTINGS: FittingType[] = ["tee", "elbow90", "elbow45", "coupling", "reducer", "cap", "cross", "male-adapter", "female-adapter", "union", "swing-joint"];
 const EQUIPMENT: { t: EquipmentType; icon: React.ReactNode }[] = [
   { t: "backflow", icon: <ShieldCheck size={14} /> },
   { t: "pressure-regulator", icon: <Gauge size={14} /> },
@@ -171,11 +170,16 @@ export function LeftPanel() {
       </Group>
 
       <Group title="Fittings">
-        <div className="grid grid-cols-2 gap-0.5">
-          {FITTINGS.map((f) => (
-            <Tile key={f} active={tool === "fitting" && opts.fittingType === f} onClick={() => use("fitting", { fittingType: f })} icon={<GitMerge size={14} />} label={FITTING_LABELS[f]} />
-          ))}
-        </div>
+        {(["slip", "threaded"] as const).map((g) => (
+          <div key={g} className="mb-1">
+            <div className="px-1 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">{g === "slip" ? "Slip (glue)" : "Threaded"}</div>
+            <div className="grid grid-cols-2 gap-0.5">
+              {FITTING_DEFS.filter((f) => f.group === g).map((f) => (
+                <Tile key={f.type} active={tool === "fitting" && opts.fittingType === f.type} onClick={() => use("fitting", { fittingType: f.type })} icon={<GitMerge size={14} />} label={f.label} />
+              ))}
+            </div>
+          </div>
+        ))}
       </Group>
 
       <Group title="Valves & source">

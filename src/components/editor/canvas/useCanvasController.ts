@@ -16,6 +16,7 @@ import type { Project, Sprinkler, Pipe } from "@/lib/model/types";
 import { makeArea, uid, LINE_DEFAULTS, makeWaterSource } from "@/lib/model/factory";
 import { add, angleOf, closestOnPolyline, dist, distToPolygonEdge, fromAngle, normAngle, pointInPolygon, sub, type Vec } from "@/lib/geometry/geometry";
 import { findObject, moveObjects, rotateObjects, scaleObjects, selectionBounds, isLocked } from "@/lib/editor/ops";
+import { applyPipeMoveLinks, constrainPipeMove, pipeMoveLinks, type PipeMoveLinks } from "@/lib/editor/pipeLinks";
 import { hitTest, marqueeHits } from "./hitTest";
 import { snapPoint } from "./snapping";
 import { toWorld, zoomAt } from "./viewport";
@@ -30,8 +31,8 @@ import { headPerformance } from "@/lib/irrigation/sprinkler";
 type Drag =
   | { type: "pan"; sx: number; sy: number; vx: number; vy: number; moved: boolean; button: number }
   | { type: "marquee"; start: Vec; cur: Vec; additive: boolean }
-  | { type: "move"; start: Vec; anchor: Vec; ids: string[]; moved: boolean; attached: { pipeId: string; index: number; orig: Vec }[]; base: Project }
-  | { type: "handle"; h: Handle; start: Vec; moved: boolean; base: Project; attached: { pipeId: string; index: number }[] }
+  | { type: "move"; start: Vec; anchor: Vec; ids: string[]; moved: boolean; attached: { pipeId: string; index: number; orig: Vec }[]; links: PipeMoveLinks; base: Project }
+  | { type: "handle"; h: Handle; start: Vec; moved: boolean; base: Project; attached: { pipeId: string; index: number }[]; fittings: string[] }
   | { type: "rect"; start: Vec }
   | { type: "circle"; center: Vec };
 
@@ -273,12 +274,16 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
             }
             // pipe endpoints drag connected pipe ends with them
             const attached: { pipeId: string; index: number }[] = [];
+            const fittings: string[] = [];
             if (h.kind === "vertex") {
               const r = findObject(project, h.objId!);
-              if (r?.collection === "pipes")
+              if (r?.collection === "pipes") {
                 for (const pp of project.pipes) pp.points.forEach((q, i) => pp.id !== h.objId && dist(q, h.p) < 0.05 && attached.push({ pipeId: pp.id, index: i }));
+                // the fitting at that joint moves with it
+                for (const f of project.fittings) if (dist(f.position, h.p) < 0.5) fittings.push(f.id);
+              }
             }
-            drag.current = { type: "handle", h, start: world, moved: false, base: project, attached };
+            drag.current = { type: "handle", h, start: world, moved: false, base: project, attached, fittings };
             return;
           }
           const hit = hitTest(project, world, 6 / z);
@@ -308,7 +313,9 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
                 pp.points.forEach((q, i) => dist(q, pos) < 0.3 && attached.push({ pipeId: pp.id, index: i, orig: q }));
               }
             }
-            drag.current = { type: "move", start: world, anchor, ids, moved: false, attached, base: project };
+            // dragged pipes keep their joints: connected pipes stretch/shorten, fittings follow
+            const links = pipeMoveLinks(project, ids);
+            drag.current = { type: "move", start: world, anchor, ids, moved: false, attached, links, base: project };
           } else {
             if (!e.shiftKey) ed.select([]);
             drag.current = { type: "marquee", start: world, cur: world, additive: e.shiftKey };
@@ -488,12 +495,14 @@ export function useCanvasController(ref: React.RefObject<HTMLDivElement | null>,
         const raw = sub(world, dr.start);
         const target = add(dr.anchor, raw);
         const s = snapFor(target, e, new Set(dr.ids));
-        const delta = sub(s.point, dr.anchor);
+        // Alt: move freely (joint angles may change)
+        const delta = constrainPipeMove(dr.links, sub(s.point, dr.anchor), e.altKey);
         ed.setCursor(world, s);
         useProjectStore.setState({ project: dr.base });
         P().apply(
           (d) => {
             moveObjects(d as Project, dr.ids, delta.x, delta.y);
+            applyPipeMoveLinks(d as Project, dr.links, delta);
             for (const a of dr.attached) {
               const pp = d.pipes.find((x) => x.id === a.pipeId);
               if (pp) pp.points[a.index] = add(a.orig, delta);
@@ -688,6 +697,7 @@ function applyHandleDrag(dr: Extract<Drag, { type: "handle" }>, world: Vec, e: R
             const pp = d.pipes.find((x) => x.id === a.pipeId);
             if (pp) pp.points[a.index] = s.point;
           }
+          for (const f of d.fittings) if (dr.fittings.includes(f.id)) f.position = s.point;
         },
         { history: false },
       );

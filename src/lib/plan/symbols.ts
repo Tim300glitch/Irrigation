@@ -61,33 +61,53 @@ export const EQUIPMENT_NAMES: Record<EquipmentType, string> = {
   "valve-box": "Valve box",
 };
 
-export const FITTING_ABBR: Record<FittingType, string> = {
-  tee: "T",
-  cross: "X",
-  elbow90: "90",
-  elbow45: "45",
-  coupling: "C",
-  reducer: "RD",
-  cap: "CAP",
-  "male-adapter": "MA",
-  "female-adapter": "FA",
-  union: "U",
-  "swing-joint": "SJ",
-};
+export interface FittingDef {
+  type: FittingType;
+  /** short name on the tool palette / properties */
+  label: string;
+  /** plan symbol text (max ~3 chars) */
+  abbr: string;
+  /** takeoff / price-list description */
+  takeoffName: string;
+  group: "slip" | "threaded";
+}
 
-export const FITTING_LABELS: Record<FittingType, string> = {
-  tee: "Tee",
-  cross: "Cross",
-  elbow90: "90° Elbow",
-  elbow45: "45° Elbow",
-  coupling: "Coupling",
-  reducer: "Reducer",
-  cap: "Cap",
-  "male-adapter": "Male adapter",
-  "female-adapter": "Female adapter",
-  union: "Union",
-  "swing-joint": "Swing joint",
-};
+/** Every fitting the designer can place. FPT = female thread, MPT = male thread, S = slip (glue). */
+export const FITTING_DEFS: FittingDef[] = [
+  { type: "tee", label: "Tee", abbr: "T", takeoffName: "Tee (slip)", group: "slip" },
+  { type: "elbow90", label: "90° Elbow", abbr: "90", takeoffName: "Ell 90° (slip)", group: "slip" },
+  { type: "elbow45", label: "45° Elbow", abbr: "45", takeoffName: "Ell 45° (slip)", group: "slip" },
+  { type: "coupling", label: "Coupling", abbr: "C", takeoffName: "Coupling (slip)", group: "slip" },
+  { type: "reducer", label: "Reducer", abbr: "RD", takeoffName: "Reducer bushing", group: "slip" },
+  { type: "cap", label: "Cap", abbr: "CAP", takeoffName: "Cap (slip)", group: "slip" },
+  { type: "cross", label: "Cross", abbr: "X", takeoffName: "Cross", group: "slip" },
+  { type: "male-adapter", label: "Male adapter", abbr: "MA", takeoffName: "Male adapter slip×MPT", group: "threaded" },
+  { type: "female-adapter", label: "Female adapter", abbr: "FA", takeoffName: "Female adapter slip×FPT", group: "threaded" },
+  { type: "tee-fpt", label: "Tee S×S×FPT", abbr: "TF", takeoffName: "Tee slip×slip×FPT", group: "threaded" },
+  { type: "tee-thread", label: "Tee all-thread", abbr: "TT", takeoffName: "Tee FPT×FPT×FPT", group: "threaded" },
+  { type: "ell-fpt", label: "90° Ell S×FPT", abbr: "9F", takeoffName: "Ell 90° slip×FPT", group: "threaded" },
+  { type: "elbow90-thread", label: "90° Ell FPT×FPT", abbr: "9T", takeoffName: "Ell 90° FPT×FPT", group: "threaded" },
+  { type: "street-elbow90", label: "90° Street ell", abbr: "S90", takeoffName: "Street ell 90° MPT×FPT", group: "threaded" },
+  { type: "elbow45-thread", label: "45° Ell FPT×FPT", abbr: "4T", takeoffName: "Ell 45° FPT×FPT", group: "threaded" },
+  { type: "street-elbow45", label: "45° Street ell", abbr: "S45", takeoffName: "Street ell 45° MPT×FPT", group: "threaded" },
+  { type: "coupling-thread", label: "Coupling FPT×FPT", abbr: "CT", takeoffName: "Coupling FPT×FPT", group: "threaded" },
+  { type: "reducer-bushing-thread", label: "Bushing MPT×FPT", abbr: "RB", takeoffName: "Reducer bushing MPT×FPT", group: "threaded" },
+  { type: "cap-thread", label: "Cap FPT", abbr: "CF", takeoffName: "Cap FPT", group: "threaded" },
+  { type: "plug", label: "Plug MPT", abbr: "PL", takeoffName: "Plug MPT", group: "threaded" },
+  { type: "nipple", label: "Nipple", abbr: "NP", takeoffName: "Nipple MPT×MPT", group: "threaded" },
+  { type: "close-nipple", label: "Close nipple", abbr: "CN", takeoffName: "Close nipple MPT×MPT", group: "threaded" },
+  { type: "hex-nipple", label: "Hex nipple", abbr: "HN", takeoffName: "Hex nipple MPT×MPT", group: "threaded" },
+  { type: "riser-nipple", label: "Riser nipple", abbr: "RN", takeoffName: "Riser / cut-off nipple MPT", group: "threaded" },
+  { type: "cross-thread", label: "Cross FPT", abbr: "XT", takeoffName: "Cross FPT×FPT×FPT×FPT", group: "threaded" },
+  { type: "union", label: "Union", abbr: "U", takeoffName: "Union", group: "threaded" },
+  { type: "union-thread", label: "Union FPT×FPT", abbr: "UT", takeoffName: "Union FPT×FPT", group: "threaded" },
+  { type: "barb-ell", label: "Barb ell × MPT", abbr: "BE", takeoffName: "Barbed ell × MPT", group: "threaded" },
+  { type: "barb-adapter", label: "Barb × MPT adapter", abbr: "BA", takeoffName: "Barbed × MPT adapter", group: "threaded" },
+  { type: "swing-joint", label: "Swing joint", abbr: "SJ", takeoffName: "Swing joint assembly", group: "threaded" },
+];
+
+export const FITTING_ABBR = Object.fromEntries(FITTING_DEFS.map((f) => [f.type, f.abbr])) as Record<FittingType, string>;
+export const FITTING_LABELS = Object.fromEntries(FITTING_DEFS.map((f) => [f.type, f.label])) as Record<FittingType, string>;
 
 export const AREA_LABELS: Record<AreaType, string> = {
   property: "Property boundary",
