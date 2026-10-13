@@ -8,7 +8,7 @@ import type { ProjectStatus, ProjectType } from "@/lib/model/types";
 import { SHORTCUTS } from "../useShortcuts";
 import { repo, type ProjectVersion } from "@/lib/storage/repository";
 import { actions } from "../actions";
-import { allProducts, getProduct } from "@/lib/catalog/sprinklers";
+import { allProducts, getProduct, groupedProductOptions } from "@/lib/catalog/sprinklers";
 import type { LayoutHeadClass } from "@/lib/irrigation/autoLayout";
 import { autoLayoutArea } from "@/lib/irrigation/autoLayout";
 import { formatArea, formatFeetInches } from "@/lib/units/units";
@@ -156,7 +156,7 @@ export function AutoDesignDialog({ onClose }: { onClose: () => void }) {
   const [radius, setRadius] = useState<number | undefined>(undefined);
   const area = areas.find((a) => a.id === areaId);
   const preview = area ? autoLayoutArea(project, area, { headClass, productId: productId || undefined, radius }) : null;
-  const products = allProducts().filter((p) => ["rotor", "spray", "rotary", "impact"].includes(p.category));
+  const products = allProducts().filter((p) => (headClass === "auto" ? ["rotor", "spray", "rotary", "impact"].includes(p.category) : p.category === headClass));
   const q = preview ? preview.heads.reduce((acc, h) => acc + (getProduct(h.productId).matchedPrecip ? getProduct(h.productId).nozzles.find((n) => n.id === h.nozzleId)!.flowGpm * (h.arc / 360) : getProduct(h.productId).nozzles.find((n) => n.id === h.nozzleId)!.flowGpm), 0) : 0;
   return (
     <Modal
@@ -212,7 +212,7 @@ export function AutoDesignDialog({ onClose }: { onClose: () => void }) {
               />
             </Field>
             <Field label="Product">
-              <Select value={productId} onChange={setProductId} options={[{ value: "", label: "Default for type" }, ...products.map((p) => ({ value: p.id, label: p.model }))]} />
+              <Select value={productId} onChange={setProductId} options={[{ value: "", label: "Default for type" }, ...groupedProductOptions(products)]} />
             </Field>
             <Field label="Spacing / radius">
               <LengthInput allowEmpty value={radius} min={4} onChange={(v) => setRadius(v || undefined)} />

@@ -6,7 +6,8 @@
  * The structure allows a future supplier-pricing integration to upsert rows.
  */
 import type { MaterialProduct } from "../model/types";
-import { GENERIC_SPRINKLERS } from "../catalog/sprinklers";
+import { BUILTIN_SPRINKLERS } from "../catalog/sprinklers";
+import { MANUFACTURER_HEAD_PRICE, MANUFACTURER_NOZZLE_PRICE } from "../catalog/manufacturers";
 import { PIPE_SPECS, sizesFor } from "../hydraulics/pipes";
 import { pipeSizeLabel } from "../units/units";
 import { FITTING_NAMES } from "./takeoff";
@@ -34,8 +35,9 @@ const HEAD_PRICE: Record<string, number> = {
   "gen-emitter": 0.45,
   "gen-microspray": 1.8,
   "gen-custom": 10,
+  ...MANUFACTURER_HEAD_PRICE,
 };
-const NOZZLE_PRICE: Record<string, number> = { "gen-spray-4": 2.25, "gen-spray-4-prs": 2.25, "gen-spray-strip": 1.75, "gen-rotary-prs": 6.5, "gen-microspray": 0.6 };
+const NOZZLE_PRICE: Record<string, number> = { "gen-spray-4": 2.25, "gen-spray-4-prs": 2.25, "gen-spray-strip": 1.75, "gen-rotary-prs": 6.5, "gen-microspray": 0.6, ...MANUFACTURER_NOZZLE_PRICE };
 
 const FIT_BASE: Record<string, number> = {
   tee: 1.1,
@@ -88,15 +90,15 @@ export function defaultMaterialProducts(): MaterialProduct[] {
     }
   }
   for (const s of [2, 3, 4]) out.push(p("pipe", `${pipeSizeLabel(s)} Sch 40 PVC sleeve`, "ft", PIPE_PRICE["pvc-sch40"][String(s)] ?? 2, `sleeve:${s}`, { pipeSize: pipeSizeLabel(s) }));
-  for (const prod of GENERIC_SPRINKLERS) {
+  for (const prod of BUILTIN_SPRINKLERS) {
     if (prod.category === "emitter") {
       out.push(p("drip", `${prod.model}`, "ea", HEAD_PRICE[prod.id] ?? 0.45, `emitter:${prod.id}:*`));
       continue;
     }
     if (prod.matchedPrecip) {
-      out.push(p("sprinklers", prod.model.split(" + ")[0], "ea", HEAD_PRICE[prod.id] ?? 5, `body:${prod.id}`));
-      out.push(p("nozzles", `${prod.productLine} nozzle (any)`, "ea", NOZZLE_PRICE[prod.id] ?? 2, `nozzle:${prod.id}:*`));
-    } else out.push(p("sprinklers", `${prod.model} (any nozzle)`, "ea", HEAD_PRICE[prod.id] ?? 15, `head:${prod.id}:*`));
+      out.push(p("sprinklers", prod.model.split(" + ")[0], "ea", HEAD_PRICE[prod.id] ?? 5, `body:${prod.id}`, { brand: prod.manufacturer }));
+      out.push(p("nozzles", `${prod.productLine} nozzle (any)`, "ea", NOZZLE_PRICE[prod.id] ?? 2, `nozzle:${prod.id}:*`, { brand: prod.manufacturer }));
+    } else out.push(p("sprinklers", `${prod.model} (any nozzle)`, "ea", HEAD_PRICE[prod.id] ?? 15, `head:${prod.id}:*`, { brand: prod.manufacturer }));
   }
   out.push(p("fittings", '3/4" swing joint assembly', "ea", 6.75, "fitting:swing-joint:0.75"));
   out.push(p("fittings", '1" swing joint assembly', "ea", 9.5, "fitting:swing-joint:1"));

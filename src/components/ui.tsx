@@ -201,7 +201,19 @@ export function TextInput({ value, onChange, placeholder, className }: { value: 
   return <input className={cn(inputCls, className)} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
 }
 
-export function Select<T extends string | number>({ value, onChange, options, className }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string }) {
+/** Options that share a `group` (listed consecutively) render under one heading. */
+export function Select<T extends string | number>({ value, onChange, options, className }: { value: T; onChange: (v: T) => void; options: { value: T; label: string; group?: string }[]; className?: string }) {
+  const opt = (o: { value: T; label: string }) => (
+    <option key={String(o.value)} value={String(o.value)}>
+      {o.label}
+    </option>
+  );
+  const runs: { group?: string; items: typeof options }[] = [];
+  for (const o of options) {
+    const last = runs[runs.length - 1];
+    if (last && last.group === o.group) last.items.push(o);
+    else runs.push({ group: o.group, items: [o] });
+  }
   return (
     <select
       className={cn(inputCls, "pr-6", className)}
@@ -211,11 +223,15 @@ export function Select<T extends string | number>({ value, onChange, options, cl
         if (o) onChange(o.value);
       }}
     >
-      {options.map((o) => (
-        <option key={String(o.value)} value={String(o.value)}>
-          {o.label}
-        </option>
-      ))}
+      {runs.map((r, i) =>
+        r.group ? (
+          <optgroup key={`${r.group}-${i}`} label={r.group}>
+            {r.items.map(opt)}
+          </optgroup>
+        ) : (
+          r.items.map(opt)
+        ),
+      )}
     </select>
   );
 }

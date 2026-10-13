@@ -4,8 +4,8 @@
  * The built-in entries are GENERIC products whose performance values are
  * representative of common residential equipment classes (gear rotors,
  * 4" spray bodies with variable-arc nozzles, multi-stream rotary nozzles, etc.).
- * They are NOT copied manufacturer data. The schema is designed so manufacturer
- * catalogs (Hunter, Rain Bird, Toro, K-Rain...) can be loaded as additional
+ * They are NOT copied manufacturer data. Brand-name products (Hunter, Rain Bird,
+ * Toro, K-Rain) live in `manufacturers.ts`; more can be loaded as additional
  * `SprinklerProduct` records via `registerCatalog()` without code changes.
  *
  * Conventions:
@@ -16,6 +16,8 @@
  *    the designer matches precipitation by choosing nozzles per arc.
  */
 import type { SprinklerCategory } from "../model/types";
+import { HEAD_NAMES } from "../plan/symbols";
+import { MANUFACTURER_SPRINKLERS } from "./manufacturers";
 
 export interface Nozzle {
   id: string;
@@ -379,7 +381,10 @@ export const GENERIC_DRIPLINE: DriplineProduct[] = [
   },
 ];
 
-const catalog = new Map<string, SprinklerProduct>(GENERIC_SPRINKLERS.map((p) => [p.id, p]));
+/** Every built-in product: generic classes first, then brand-name products. */
+export const BUILTIN_SPRINKLERS: SprinklerProduct[] = [...GENERIC_SPRINKLERS, ...MANUFACTURER_SPRINKLERS];
+
+const catalog = new Map<string, SprinklerProduct>(BUILTIN_SPRINKLERS.map((p) => [p.id, p]));
 
 /** Register additional manufacturer catalogs at runtime. */
 export function registerCatalog(products: SprinklerProduct[]) {
@@ -388,6 +393,12 @@ export function registerCatalog(products: SprinklerProduct[]) {
 
 export function allProducts(): SprinklerProduct[] {
   return [...catalog.values()];
+}
+
+/** Dropdown options grouped by head type, each labelled "Brand Model". */
+export function groupedProductOptions(products: SprinklerProduct[]) {
+  const cats = [...new Set(products.map((p) => p.category))];
+  return cats.flatMap((c) => products.filter((p) => p.category === c).map((p) => ({ value: p.id, label: `${p.manufacturer} ${p.model}`, group: HEAD_NAMES[c] })));
 }
 
 export function getProduct(id: string): SprinklerProduct {
