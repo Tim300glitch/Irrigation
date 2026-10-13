@@ -92,11 +92,11 @@ export function scheduleZone(zone: Zone, zr: ZoneResult, cls: PrecipClass, clima
   const need = eto * PLANT_KC[zone.plantType].kc * SUN_FACTOR[zone.sun];
   const gross = need / eff;
   const runtimeWeek = pr > 0 ? (gross / pr) * 60 : 0;
-  const days = Math.max(1, Math.min(7, zone.schedule.daysPerWeek));
+  const days = wateringDaysPerWeek(zone);
   const perDay = zone.schedule.runtimeOverrideMin ?? runtimeWeek / days;
   const soil = SOIL[zone.soil];
   const maxCycle = pr > 0 ? ((soil.depthPerCycle * slopeFactor(zone.slopePct)) / pr) * 60 : perDay;
-  const cycles = Math.max(1, Math.ceil(perDay / Math.max(maxCycle, 1)));
+  const cycles = zone.schedule.cyclesOverride ? Math.max(1, Math.round(zone.schedule.cyclesOverride)) : Math.max(1, Math.ceil(perDay / Math.max(maxCycle, 1)));
   const gpd = zr.gpm * perDay;
   return {
     zoneId: zone.id,
@@ -113,6 +113,67 @@ export function scheduleZone(zone: Zone, zr: ZoneResult, cls: PrecipClass, clima
     gallonsPerWeek: gpd * days,
     gallonsPerMonth: gpd * days * 4.345,
   };
+}
+
+/** Watering days per week, from the picked weekdays when present. */
+export function wateringDaysPerWeek(zone: Zone): number {
+  const n = zone.schedule.days ? zone.schedule.days.length : zone.schedule.daysPerWeek;
+  return Math.max(1, Math.min(7, n));
+}
+
+/** Evenly spread watering days through the week (0 = Sun … 6 = Sat), avoiding back-to-back days where possible. */
+export const DAY_PATTERNS: Record<number, number[]> = {
+  1: [3],
+  2: [1, 4],
+  3: [1, 3, 5],
+  4: [0, 2, 4, 6],
+  5: [1, 2, 3, 5, 6],
+  6: [0, 1, 2, 3, 4, 5],
+  7: [0, 1, 2, 3, 4, 5, 6],
+};
+
+/** Base watering days per week at ~1.2 in/week plant need — sandy soils hold less water, so water more often. */
+const SOIL_BASE_DAYS: Record<SoilType, number> = { sand: 4, "sandy-loam": 3, loam: 3, "clay-loam": 2, clay: 2 };
+
+export function suggestedDaysPerWeek(zone: Zone, climate: ClimateId, month: number, provider: ClimateProvider = staticClimate): number {
+  const need = provider.etoInchesPerWeek(climate, month) * PLANT_KC[zone.plantType].kc * SUN_FACTOR[zone.sun];
+  return Math.max(1, Math.min(7, Math.round((SOIL_BASE_DAYS[zone.soil] * need) / 1.2)));
+}
+
+export function minutesToClock(min: number): string {
+  const m = ((Math.round(min) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+export function clockToMinutes(t: string | undefined): number | undefined {
+  const m = t && /^(\d{1,2}):(\d{2})$/.exec(t);
+  return m ? +m[1] * 60 + +m[2] : undefined;
+}
+
+export interface SuggestedZoneSchedule {
+  zoneId: string;
+  daysPerWeek: number;
+  days: number[];
+  startTime: string;
+}
+
+/**
+ * Auto-suggested controller program: days per week from soil and plant need,
+ * days spread across the week, and zones run back to back (one valve at a
+ * time) starting early morning so watering finishes before the day heats up.
+ * `runMinutes(zone, days)` returns the zone's minutes per watering day at that
+ * many days per week (including cycles).
+ */
+export function suggestSchedule(zones: Zone[], climate: ClimateId, month: number, runMinutes: (zone: Zone, daysPerWeek: number) => number, startMin = 5 * 60): SuggestedZoneSchedule[] {
+  let t = startMin;
+  return [...zones]
+    .sort((a, b) => a.number - b.number)
+    .map((z) => {
+      const daysPerWeek = suggestedDaysPerWeek(z, climate, month);
+      const out = { zoneId: z.id, daysPerWeek, days: DAY_PATTERNS[daysPerWeek], startTime: minutesToClock(t) };
+      t += Math.ceil(runMinutes(z, daysPerWeek));
+      return out;
+    });
 }
 
 /**

@@ -11,7 +11,7 @@ import { autoLayoutArea } from "../irrigation/autoLayout";
 import { autoZone } from "../irrigation/autoZone";
 import { dripCalc } from "../irrigation/drip";
 import type { Sprinkler } from "../model/types";
-import { scheduleZone } from "../irrigation/schedule";
+import { scheduleZone, suggestSchedule } from "../irrigation/schedule";
 import { createDemoProject } from "../model/demo";
 import { analyzeProject } from "../analysis";
 
@@ -177,6 +177,25 @@ describe("scheduling", () => {
     expect(r.runtimeMinWeek).toBeCloseTo((r.needInWeek / 0.7 / 0.5) * 60, 6);
     expect(r.cycles).toBeGreaterThan(1); // clay needs cycle & soak
     expect(r.gallonsPerDay).toBeCloseTo(10 * r.runtimeMinDay, 6);
+  });
+  test("picked weekdays and manual cycles drive the schedule", () => {
+    const zone = { id: "z", number: 1, name: "z", color: "", plantType: "cool-turf" as const, sun: "full" as const, soil: "loam" as const, slopePct: 0, schedule: { daysPerWeek: 3, days: [1, 4], cyclesOverride: 3, runtimeOverrideMin: 30 } };
+    const zr = { avgPrecip: 0.5, gpm: 10 } as unknown as Parameters<typeof scheduleZone>[1];
+    const r = scheduleZone(zone, zr, "rotor", "ca-inland", 6);
+    expect(r.cycles).toBe(3);
+    expect(r.cycleMin).toBeCloseTo(10, 6);
+    expect(r.gallonsPerWeek).toBeCloseTo(10 * 30 * 2, 6);
+  });
+  test("auto-suggest: more days in summer and on sand, zones run back to back", () => {
+    const mk = (id: string, number: number, soil: "sand" | "clay") => ({ id, number, name: id, color: "", plantType: "cool-turf" as const, sun: "full" as const, soil, slopePct: 0, schedule: { daysPerWeek: 3 } });
+    const zones = [mk("b", 2, "clay"), mk("a", 1, "sand")];
+    const july = suggestSchedule(zones, "ca-inland", 6, () => 20);
+    expect(july.map((p) => p.zoneId)).toEqual(["a", "b"]);
+    expect(july[0].daysPerWeek).toBeGreaterThan(july[1].daysPerWeek);
+    expect(july[0].days).toHaveLength(july[0].daysPerWeek);
+    expect(july.map((p) => p.startTime)).toEqual(["05:00", "05:20"]);
+    const jan = suggestSchedule(zones, "ca-inland", 0, () => 20);
+    expect(jan[0].daysPerWeek).toBeLessThan(july[0].daysPerWeek);
   });
 });
 
