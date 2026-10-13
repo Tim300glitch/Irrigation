@@ -6,7 +6,7 @@
  */
 import { jsPDF } from "jspdf";
 import "svg2pdf.js";
-import type { AuditReport, Customer, CrmSettings, Estimate, Invoice, LineItem, Payment, Property, Zone } from "../crm/types";
+import type { AuditReport, Customer, CrmSettings, Estimate, Invoice, LineItem, Payment, Property, PurchaseOrder, Vendor, Zone } from "../crm/types";
 import { invoiceTotals, optionTotals, type AuditResult } from "../crm/calc";
 import { addressFull, customerName, date, money, num } from "../crm/format";
 
@@ -14,6 +14,11 @@ const W = 612;
 const H = 792;
 const M = 44;
 const BRAND: [number, number, number] = [15, 100, 144];
+
+/** "Zones: 8 · Type: Direct burial" */
+export function optionText(o?: Record<string, string>) {
+  return o ? Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(" · ") : "";
+}
 
 class Pdf {
   doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -121,7 +126,8 @@ class Pdf {
       d.setFontSize(9.5);
       const name = d.splitTextToSize(i.name, 300) as string[];
       d.setFontSize(8);
-      const desc = i.description ? (d.splitTextToSize(i.description, 300) as string[]) : [];
+      const text = [optionText(i.options), i.description].filter(Boolean).join(" — ");
+      const desc = text ? (d.splitTextToSize(text, 300) as string[]) : [];
       const h = name.length * 12 + desc.length * 10 + 4;
       if (this.y + h > H - M) {
         d.addPage();
@@ -238,6 +244,22 @@ export function estimatePdf(e: Estimate, c: Customer | undefined, p: Property | 
   pdf.heading("Terms", 10.5);
   pdf.paragraph(e.terms, 8.5);
   pdf.signature(e.signature?.name, e.signature?.dataUrl, e.signature?.signedAt);
+  return pdf.blob();
+}
+
+export function purchaseOrderPdf(po: PurchaseOrder, v: Vendor | undefined, deliverTo: string, s: CrmSettings): Blob {
+  const pdf = new Pdf(s);
+  pdf.header("PURCHASE ORDER", [`PO-${po.number}`, `Date ${date(po.orderedAt ?? po.createdAt)}`, ...(po.neededBy ? [`Needed by ${date(po.neededBy)}`] : [])]);
+  pdf.parties([
+    { label: "Supplier", lines: v ? [v.name, v.contactName, v.address, [v.phone, v.email].filter(Boolean).join("  ·  "), v.accountNumber ? `Our account # ${v.accountNumber}` : ""].filter(Boolean) : ["Supplier not set"] },
+    { label: "Ship to", lines: [s.businessName, addressFull(s.address), deliverTo !== "Warehouse" ? `Attn: ${deliverTo}` : ""].filter(Boolean) },
+    { label: "Terms", lines: [v?.paymentTerms || "Per account terms"] },
+  ]);
+  const lines: LineItem[] = po.items.map((l) => ({ id: l.id, itemId: l.itemId, kind: "material", name: l.name, description: l.sku ? `SKU ${l.sku}` : "", qty: l.qty, unit: l.unit, unitCost: l.unitCost, unitPrice: l.unitCost, taxable: false }));
+  pdf.items(lines);
+  pdf.totals([["Order total", po.items.reduce((t, l) => t + l.qty * l.unitCost, 0), "bold"]]);
+  if (po.notes) pdf.paragraph(po.notes);
+  pdf.paragraph(`Please reference PO-${po.number} on the packing slip and invoice. Questions: ${[s.phone, s.email].filter(Boolean).join(" · ")}`, 8.5);
   return pdf.blob();
 }
 

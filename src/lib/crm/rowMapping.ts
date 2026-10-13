@@ -86,6 +86,7 @@ export const SPEC: Record<CollectionName, Spec> = {
   activity: { table: "activity_logs", rename: { by: "by_employee" } },
   notifications: { table: "notifications" },
   installs: { table: "install_projects" },
+  purchaseOrders: { table: "purchase_orders" },
 };
 
 /** Upsert order for a full sync (parents before children). */
@@ -93,7 +94,7 @@ export const SYNC_ORDER: CollectionName[] = [
   "employees", "trucks", "vendors", "campaigns", "customers", "properties", "systems", "controllers", "zones", "components",
   "leads", "items", "truckStock", "estimateTemplates", "checklistTemplates", "estimates", "installs", "servicePlans", "planSubscriptions",
   "jobs", "changeOrders", "appointments", "invoices", "payments", "inventoryTxns", "timeEntries", "audits", "photos", "documents",
-  "messageTemplates", "automations", "automationRuns", "messages", "notifications", "warranties", "activity",
+  "messageTemplates", "automations", "automationRuns", "messages", "notifications", "warranties", "activity", "purchaseOrders",
 ];
 
 const snake = (s: string) => s.replace(/[A-Z]/g, (m) => "_" + m.toLowerCase());

@@ -300,6 +300,8 @@ export interface LineItem {
   unitCost: number;
   unitPrice: number;
   taxable: boolean;
+  /** chosen item options, e.g. { Size: "1\"", Zones: "8" } */
+  options?: Record<string, string>;
 }
 
 export interface EstimateOption {
@@ -423,6 +425,8 @@ export interface Job {
   startedAt?: ISODateTime;
   completedAt?: ISODateTime;
   invoiceId?: Id;
+  /** hidden from job lists and boards; history kept */
+  archived?: boolean;
   createdAt: ISODateTime;
 }
 
@@ -532,6 +536,57 @@ export interface InventoryItem {
   /** default labor hours to install one unit (for estimate labor suggestions) */
   laborHrsPerUnit?: number;
   active: boolean;
+  /** supplier / spec-sheet / manual links */
+  links?: ItemLink[];
+  /** choices picked per line, e.g. Size, Zones, Conductors, Wire type */
+  options?: ItemOption[];
+  /** added automatically to new jobs and estimates of these types */
+  defaultFor?: { serviceType: ServiceType; qty: number }[];
+}
+
+export interface ItemLink {
+  label: string;
+  url: string;
+}
+
+export interface ItemOption {
+  name: string;
+  values: ItemOptionValue[];
+}
+
+export interface ItemOptionValue {
+  label: string;
+  /** replaces the item's cost when this value is picked (e.g. a 12-zone controller) */
+  cost?: number;
+}
+
+export type PurchaseOrderStatus = "draft" | "ordered" | "received" | "cancelled";
+
+export interface PurchaseOrderLine {
+  id: Id;
+  itemId?: Id;
+  name: string;
+  sku: string;
+  qty: number;
+  unit: string;
+  unitCost: number;
+}
+
+export interface PurchaseOrder {
+  id: Id;
+  number: number;
+  vendorId?: Id;
+  status: PurchaseOrderStatus;
+  items: PurchaseOrderLine[];
+  /** deliver to the warehouse or straight onto a truck */
+  deliverTo: "warehouse" | Id;
+  neededBy?: ISODate;
+  jobId?: Id;
+  notes: string;
+  createdBy?: Id;
+  createdAt: ISODateTime;
+  orderedAt?: ISODateTime;
+  receivedAt?: ISODateTime;
 }
 
 export interface TruckStock {
@@ -917,7 +972,7 @@ export interface CrmSettings {
   statusLabels: Partial<Record<JobStatus | LeadStage, string>>;
   notificationPrefs: Record<NotificationType, boolean>;
   rolePermissions: Record<Role, Permission[]>;
-  nextNumbers: { estimate: number; job: number; invoice: number; changeOrder: number };
+  nextNumbers: { estimate: number; job: number; invoice: number; changeOrder: number; purchaseOrder?: number };
 }
 
 export type Permission =
@@ -980,6 +1035,7 @@ export interface CrmCollections {
   activity: ActivityLog;
   notifications: Notification;
   installs: InstallProject;
+  purchaseOrders: PurchaseOrder;
 }
 
 export type CollectionName = keyof CrmCollections;
@@ -1022,6 +1078,7 @@ export const COLLECTIONS: CollectionName[] = [
   "activity",
   "notifications",
   "installs",
+  "purchaseOrders",
 ];
 
 export function emptyData(): CrmData {

@@ -99,7 +99,8 @@
   --color-blue-700: #93c5fd;
 }
 .dark .bg-white,
-.dark .hover\:bg-white:hover {
+.dark .hover\:bg-white:hover,
+.dark .focus\:bg-white:focus {
   background-color: var(--color-surface);
 }
 .dark .bg-white\/90,

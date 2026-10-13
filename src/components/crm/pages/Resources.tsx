@@ -1,10 +1,12 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Truck, Package, AlertTriangle, ArrowRightLeft, Repeat, CalendarPlus, Download, Clock, LogIn, LogOut, ShoppingCart, Pencil, Phone, Mail, Globe, BadgeCheck, Trash2 } from "lucide-react";
 import { useCrm, byId, canDeleteEmployee, employeeHasHistory } from "@/store/crmStore";
 import { ask } from "@/components/AskHost";
+import { DefaultForEditor, ItemLinks, LinksEditor, OptionsEditor } from "../ItemOptions";
+import { PurchaseOrderEditor, PurchaseOrdersPanel, SupplierSelect, poLine } from "./PurchaseOrders";
 import type { Employee, InventoryItem, ItemCategory, PricingRule, Role, ServicePlan, Vendor, PlanSubscription } from "@/lib/crm/types";
 import { ITEM_CATEGORIES, ROLES, TIME_TYPES, roleLabel, PERMISSIONS } from "@/lib/crm/constants";
 import { customerName, date, dateTime, fullName, hours, money, money0, pct, phone, isoDate, relative, time } from "@/lib/crm/format";
@@ -139,6 +141,7 @@ export function InventoryPage() {
   const [cat, setCat] = useState("");
   const [edit, setEdit] = useState<InventoryItem | null>(null);
   const [transfer, setTransfer] = useState(false);
+  const [poOpen, setPoOpen] = useState<string | null>(null);
   const [truckId, setTruckId] = useState(data.trucks[0]?.id ?? "");
   const vendors = byId(data.vendors);
   const items = byId(data.items);
@@ -164,8 +167,8 @@ export function InventoryPage() {
         {truckTotals.map(({ t, value, low: l }) => <StatTile key={t.id} label={`${t.name} stock`} value={money0(value)} sub={l ? <span className="text-amber-700">{l} below min</span> : "all stocked"} />)}
         <StatTile label="Below minimum" value={low.length} tone={low.length ? "warn" : "default"} href="/inventory?tab=reorder" />
       </div>
-      <Tabs className="mb-3" value={tab} onChange={(t) => setQueryParam("tab", t)} tabs={[{ id: "warehouse", label: "Warehouse" }, { id: "trucks", label: "Truck inventory" }, { id: "pricebook", label: "Price book", count: data.items.length }, { id: "reorder", label: "Reorder", count: low.length }, { id: "txns", label: "Transactions" }]} />
-      {tab !== "trucks" && tab !== "txns" && tab !== "reorder" && (
+      <Tabs className="mb-3" value={tab} onChange={(t) => setQueryParam("tab", t)} tabs={[{ id: "warehouse", label: "Warehouse" }, { id: "trucks", label: "Truck inventory" }, { id: "pricebook", label: "Price book", count: data.items.length }, { id: "reorder", label: "Reorder", count: low.length }, { id: "orders", label: "Purchase orders", count: data.purchaseOrders.filter((p) => p.status === "draft" || p.status === "ordered").length || undefined }, { id: "txns", label: "Transactions" }]} />
+      {tab !== "trucks" && tab !== "txns" && tab !== "reorder" && tab !== "orders" && (
         <div className="mb-3 flex flex-wrap gap-2">
           <SearchBox value={search} onChange={setSearch} placeholder="Item, SKU, manufacturer…" className="w-full sm:w-72" />
           <Select value={cat} onChange={(e) => setCat(e.target.value)} options={[{ value: "", label: "All categories" }, ...ITEM_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))]} className="w-44" />
@@ -179,13 +182,14 @@ export function InventoryPage() {
             onRowClick={setEdit}
             initialSort={{ key: "name", dir: "asc" }}
             columns={[
-              { key: "name", header: "Item", mobile: true, sort: (i) => i.name, cell: (i) => <div><div className="font-medium text-slate-900">{i.name}</div><div className="text-[11.5px] text-slate-500">{i.sku} · {ITEM_CATEGORIES.find((c) => c.id === i.category)?.label}</div></div> },
+              { key: "name", header: "Item", mobile: true, sort: (i) => i.name, cell: (i) => <div><div className="font-medium text-slate-900">{i.name}</div><div className="flex flex-wrap gap-x-2 text-[11.5px] text-slate-500"><span>{i.sku} · {ITEM_CATEGORIES.find((c) => c.id === i.category)?.label}</span><ItemLinks links={i.links} /></div></div> },
               { key: "qty", header: "Warehouse", align: "right", mobile: true, sort: (i) => i.warehouseQty, cell: (i) => <span className={cn("font-medium", i.warehouseQty <= i.minQty ? "text-red-600" : "text-slate-900")}>{i.warehouseQty} {i.unit}</span> },
               { key: "trucks", header: "On trucks", align: "right", hideBelow: "md", cell: (i) => data.truckStock.filter((s) => s.itemId === i.id).reduce((s, x) => s + x.qty, 0) },
               { key: "min", header: "Min / reorder", align: "right", hideBelow: "md", cell: (i) => <span className="text-slate-500">{i.minQty} / {i.reorderQty}</span> },
               { key: "cost", header: "Cost", align: "right", sort: (i) => i.cost, cell: (i) => money(i.cost) },
               { key: "value", header: "Value", align: "right", hideBelow: "lg", sort: (i) => i.cost * i.warehouseQty, cell: (i) => money0(i.cost * i.warehouseQty) },
               { key: "vendor", header: "Supplier", hideBelow: "lg", cell: (i) => <span className="text-slate-600">{vendors.get(i.preferredVendorId ?? "")?.name ?? "—"}</span> },
+              { key: "rm", header: "", cell: (i) => <button onClick={async (e) => { e.stopPropagation(); if (await ask.confirm(`Take "${i.name}" off the stocking list? It stays in the price book for estimates; you can re-stock it from the item.`)) { st.update("items", i.id, { stocked: false }); toast(`${i.name} removed from stocking list`, "success"); } }} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Remove from stocking list" aria-label={`Remove ${i.name} from stocking list`}><Trash2 size={14} /></button> },
             ]}
           />
         </Card>
@@ -198,7 +202,7 @@ export function InventoryPage() {
             initialSort={{ key: "cat", dir: "asc" }}
             pageSize={100}
             columns={[
-              { key: "name", header: "Item", mobile: true, sort: (i) => i.name, cell: (i) => <div><div className="font-medium text-slate-900">{i.name}</div><div className="text-[11.5px] text-slate-500">{i.sku}{i.manufacturer ? ` · ${i.manufacturer}` : ""}</div></div> },
+              { key: "name", header: "Item", mobile: true, sort: (i) => i.name, cell: (i) => <div><div className="font-medium text-slate-900">{i.name}</div><div className="flex flex-wrap gap-x-2 text-[11.5px] text-slate-500"><span>{i.sku}{i.manufacturer ? ` · ${i.manufacturer}` : ""}{i.options?.length ? ` · ${i.options.map((o) => o.name).join(", ")}` : ""}</span><ItemLinks links={i.links} /></div></div> },
               { key: "price", header: "Price", align: "right", mobile: true, sort: (i) => priceFromRule(i.cost, i.pricing), cell: (i) => <span className="font-medium">{money(priceFromRule(i.cost, i.pricing))}<span className="text-[11px] font-normal text-slate-400">/{i.unit}</span></span> },
               { key: "cat", header: "Category", sort: (i) => i.category, cell: (i) => <Badge>{ITEM_CATEGORIES.find((c) => c.id === i.category)?.label}</Badge> },
               { key: "cost", header: "Cost", align: "right", sort: (i) => i.cost, cell: (i) => money(i.cost) },
@@ -238,7 +242,7 @@ export function InventoryPage() {
             const list = low.filter((i) => (i.preferredVendorId ?? "") === vid);
             return (
               <div key={vid} className="border-b border-slate-100 last:border-0">
-                <div className="flex items-center justify-between bg-slate-50 px-4 py-2 text-[12.5px] font-semibold text-slate-700"><span className="flex items-center gap-2"><ShoppingCart size={13} />{vendors.get(vid)?.name ?? "No preferred supplier"}</span><span className="tabular">{money0(list.reduce((s, i) => s + i.cost * i.reorderQty, 0))}</span></div>
+                <div className="flex items-center justify-between gap-3 bg-slate-50 px-4 py-2 text-[12.5px] font-semibold text-slate-700"><span className="flex flex-1 items-center gap-2"><ShoppingCart size={13} />{vendors.get(vid)?.name ?? "No preferred supplier"}</span><span className="tabular">{money0(list.reduce((s, i) => s + i.cost * i.reorderQty, 0))}</span><Button size="sm" variant="primary" onClick={() => { const po = st.createPurchaseOrder({ vendorId: vid || undefined, items: list.map((i) => poLine(i)) }); setPoOpen(po.id); }}><ShoppingCart size={13} /> Create PO</Button></div>
                 {list.map((i) => (
                   <div key={i.id} className="flex items-center gap-3 px-4 py-2 text-[12.5px]">
                     <AlertTriangle size={13} className="text-amber-500" />
@@ -254,6 +258,7 @@ export function InventoryPage() {
           {!low.length && <Empty title="Nothing to reorder" />}
         </Card>
       )}
+      {tab === "orders" && <PurchaseOrdersPanel onOpen={setPoOpen} />}
       {tab === "txns" && (
         <Card pad={false}>
           <DataTable
@@ -272,6 +277,7 @@ export function InventoryPage() {
       )}
       {edit && <ItemEditor item={edit} onClose={() => setEdit(null)} />}
       {transfer && <TransferModal onClose={() => setTransfer(false)} />}
+      {poOpen && <PurchaseOrderEditor id={poOpen} onClose={() => setPoOpen(null)} />}
     </Page>
   );
 }
@@ -283,7 +289,7 @@ function ItemEditor({ item, onClose }: { item: InventoryItem; onClose: () => voi
   const price = priceFromRule(f.cost, f.pricing);
   const setRule = (type: PricingRule["type"], value: number) => setF({ ...f, pricing: { type, value } as PricingRule });
   return (
-    <SlideOver open onClose={onClose} title={exists ? f.name : "New item"} subtitle={exists ? f.sku : undefined} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!f.name} onClick={() => { if (exists) st.update("items", f.id, f); else st.insert("items", f); onClose(); }}>Save</Button></>}>
+    <SlideOver open onClose={onClose} title={exists ? f.name : "New item"} subtitle={exists ? f.sku : undefined} footer={<div className="flex w-full items-center gap-2">{exists && <Button variant="danger" onClick={async () => { if (await ask.confirm(`Delete "${f.name}" from the price book? Its warehouse and truck stock records are removed. Existing estimates, jobs and invoices keep their lines.`, true)) { st.deleteItem(f.id); toast(`${f.name} deleted`, "success"); onClose(); } }}><Trash2 size={14} /> Delete item</Button>}<span className="flex-1" /><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!f.name} onClick={() => { if (exists) st.update("items", f.id, f); else st.insert("items", f); onClose(); }}>Save</Button></div>}>
       <div className="space-y-3">
         <Field label="Name"><Input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></Field>
         <div className="grid grid-cols-2 gap-2">
@@ -291,7 +297,8 @@ function ItemEditor({ item, onClose }: { item: InventoryItem; onClose: () => voi
           <Field label="Category"><Select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value as ItemCategory })} options={ITEM_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))} /></Field>
           <Field label="Manufacturer"><Input value={f.manufacturer} onChange={(e) => setF({ ...f, manufacturer: e.target.value })} /></Field>
           <Field label="Unit"><Input value={f.unit} onChange={(e) => setF({ ...f, unit: e.target.value })} /></Field>
-          <Field label="Preferred supplier" className="col-span-2"><Select value={f.preferredVendorId ?? ""} onChange={(e) => setF({ ...f, preferredVendorId: e.target.value || undefined })} options={[{ value: "", label: "—" }, ...st.data.vendors.map((v) => ({ value: v.id, label: v.name }))]} /></Field>
+          <Field label="Preferred supplier"><SupplierSelect value={f.preferredVendorId} onChange={(preferredVendorId) => setF({ ...f, preferredVendorId })} placeholder="—" /></Field>
+          <Field label="Supplier SKU"><Input value={f.vendorSku ?? ""} onChange={(e) => setF({ ...f, vendorSku: e.target.value || undefined })} /></Field>
         </div>
         <div className="rounded-xl border border-slate-200 p-3">
           <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Pricing</div>
@@ -312,8 +319,26 @@ function ItemEditor({ item, onClose }: { item: InventoryItem; onClose: () => voi
         )}
         <Field label="Install labor per unit (hours)" hint="Used to suggest labor on estimates"><NumberInput value={f.laborHrsPerUnit} allowEmpty onChange={(v) => setF({ ...f, laborHrsPerUnit: Number.isNaN(v) ? undefined : v })} step={0.05} /></Field>
         <Field label="Description"><Textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></Field>
+        <Section title="Options" hint="Sizes, zone counts, wire types… picked on each estimate or job line">
+          <OptionsEditor item={f} onChange={(options) => setF({ ...f, options })} />
+        </Section>
+        <Section title="Links" hint="Supplier product pages, spec sheets, manuals">
+          <LinksEditor links={f.links ?? []} onChange={(links) => setF({ ...f, links })} />
+        </Section>
+        <Section title="Default for job types" hint="Added automatically (with this quantity) when you create a job or estimate of that type">
+          <DefaultForEditor value={f.defaultFor ?? []} onChange={(defaultFor) => setF({ ...f, defaultFor })} />
+        </Section>
       </div>
     </SlideOver>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-3">
+      <div className="mb-2"><div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{title}</div>{hint && <div className="text-[11.5px] text-slate-500">{hint}</div>}</div>
+      {children}
+    </div>
   );
 }
 

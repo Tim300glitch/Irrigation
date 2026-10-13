@@ -12,6 +12,7 @@ import type {
   CrmCollections,
   CrmData,
   CrmSettings,
+  PurchaseOrder,
   Customer,
   Estimate,
   Invoice,
@@ -102,6 +103,10 @@ export interface CrmState {
   resetDemo: () => Promise<void>;
   /** clear all records; `everything` also clears the price book, templates and rules and resets business info */
   startFresh: (opts?: { everything?: boolean }) => Promise<void>;
+  createPurchaseOrder: (po?: Partial<PurchaseOrder>) => PurchaseOrder;
+  receivePurchaseOrder: (id: string) => void;
+  deleteJob: (id: string) => { ok: boolean; message: string };
+  deleteItem: (id: string) => void;
   deleteEmployee: (id: string) => { ok: boolean; message: string };
 }
 
@@ -206,7 +211,7 @@ export const useCrm = create<CrmState>((set, get) => ({
   },
   nextNumber: (kind) => {
     const nn = { ...get().settings.nextNumbers };
-    const n = nn[kind];
+    const n = nn[kind] ?? defaultSettings().nextNumbers[kind] ?? 1;
     nn[kind] = n + 1;
     get().saveSettings({ nextNumbers: nn });
     return n;
@@ -574,6 +579,53 @@ export const useCrm = create<CrmState>((set, get) => ({
     await get().linkDesigns();
     get().runAutomations();
     toast("Demo data restored", "success");
+  },
+
+  createPurchaseOrder: (po = {}) => {
+    const full: PurchaseOrder = { id: uid("po"), number: get().nextNumber("purchaseOrder"), status: "draft", items: [], deliverTo: "warehouse", notes: "", createdBy: get().session?.employeeId, createdAt: nowIso(), ...po };
+    get().insert("purchaseOrders", full);
+    return full;
+  },
+
+  receivePurchaseOrder: (id) => {
+    const po = get().data.purchaseOrders.find((x) => x.id === id);
+    if (!po || po.status === "received") return;
+    const at = nowIso();
+    const vendor = get().data.vendors.find((v) => v.id === po.vendorId)?.name ?? "supplier";
+    for (const l of po.items) {
+      const it = l.itemId ? get().data.items.find((x) => x.id === l.itemId) : undefined;
+      if (!it || !it.stocked || l.qty <= 0) continue;
+      if (po.deliverTo === "warehouse") get().update("items", it.id, { warehouseQty: it.warehouseQty + l.qty, cost: l.unitCost || it.cost });
+      else {
+        const ts = get().data.truckStock.find((x) => x.truckId === po.deliverTo && x.itemId === it.id);
+        if (ts) get().update("truckStock", ts.id, { qty: ts.qty + l.qty });
+        else get().insert("truckStock", { id: uid("tsk"), truckId: po.deliverTo, itemId: it.id, qty: l.qty, minQty: 0 });
+      }
+      get().insert("inventoryTxns", { id: uid("txn"), itemId: it.id, location: po.deliverTo, qty: l.qty, reason: "received", note: `PO-${po.number} from ${vendor}`, at, employeeId: get().session?.employeeId, jobId: po.jobId });
+    }
+    get().update("purchaseOrders", id, { status: "received", receivedAt: at, orderedAt: po.orderedAt ?? at });
+    toast(`PO-${po.number} received into ${po.deliverTo === "warehouse" ? "the warehouse" : get().data.trucks.find((t) => t.id === po.deliverTo)?.name ?? "truck"}`, "success");
+  },
+
+  deleteJob: (id) => {
+    const d = get().data;
+    const j = d.jobs.find((x) => x.id === id);
+    if (!j) return { ok: false, message: "Job not found" };
+    if (d.invoices.some((i) => i.jobId === id) || d.payments.some((p) => d.invoices.some((i) => i.id === p.invoiceId && i.jobId === id))) return { ok: false, message: "This job has an invoice. Archive it instead so your billing history stays intact." };
+    get().remove("changeOrders", d.changeOrders.filter((x) => x.jobId === id).map((x) => x.id));
+    for (const t of d.timeEntries) if (t.jobId === id) get().update("timeEntries", t.id, { jobId: undefined });
+    for (const t of d.inventoryTxns) if (t.jobId === id) get().update("inventoryTxns", t.id, { jobId: undefined });
+    for (const p of d.photos) if (p.jobId === id) get().update("photos", p.id, { jobId: undefined });
+    for (const po of d.purchaseOrders) if (po.jobId === id) get().update("purchaseOrders", po.id, { jobId: undefined });
+    get().remove("jobs", id);
+    get().log({ type: "job", message: `Job #${j.number} deleted — ${j.title}`, entityType: "customer", entityId: j.customerId, customerId: j.customerId });
+    return { ok: true, message: `Job #${j.number} deleted` };
+  },
+
+  deleteItem: (id) => {
+    const d = get().data;
+    get().remove("truckStock", d.truckStock.filter((x) => x.itemId === id).map((x) => x.id));
+    get().remove("items", id);
   },
 
   deleteEmployee: (id) => {

@@ -142,3 +142,39 @@ export function EmployeePicker({ value, onChange, roles, allowNone = true, place
   const list = employees.filter((e) => e.active && (!roles || roles.includes(e.role)));
   return <Select value={value ?? ""} onChange={(e) => onChange(e.target.value)} options={[...(allowNone ? [{ value: "", label: placeholder }] : []), ...list.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName}` }))]} />;
 }
+
+/** Assign several employees at once, with Select all / Clear. */
+export function CrewPicker({ value, onChange, lead }: { value: string[]; onChange: (ids: string[]) => void; /** lead tech is shown as included */ lead?: string }) {
+  const employees = useCrm((s) => s.data.employees);
+  const team = employees.filter((e) => e.active && !e.archived);
+  const on = (id: string) => value.includes(id) || id === lead;
+  const all = team.length > 0 && team.every((e) => on(e.id));
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center gap-2">
+        <button type="button" onClick={() => onChange(all ? [] : team.map((e) => e.id).filter((id) => id !== lead))} className="rounded-md border border-slate-200 px-2 py-0.5 text-[12px] font-medium text-slate-700 hover:bg-slate-50">
+          {all ? "Clear all" : "Select all"}
+        </button>
+        <span className="text-[11.5px] text-slate-500">{team.filter((e) => on(e.id)).length} of {team.length} assigned</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {team.map((e) => (
+          <button
+            type="button"
+            key={e.id}
+            disabled={e.id === lead}
+            onClick={() => onChange(value.includes(e.id) ? value.filter((x) => x !== e.id) : [...value, e.id])}
+            className={cn("inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-2.5 text-[12.5px]", on(e.id) ? "border-brand-500 bg-brand-50 font-medium text-brand-700" : "border-slate-200 text-slate-600 hover:border-slate-300")}
+            title={e.id === lead ? "Lead technician" : undefined}
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: e.color }}>{(e.firstName[0] ?? "") + (e.lastName[0] ?? "")}</span>
+            {e.firstName} {e.lastName}
+            {e.id === lead && <span className="text-[10.5px] font-normal text-slate-500">lead</span>}
+            {on(e.id) && e.id !== lead && <CheckIcon size={12} />}
+          </button>
+        ))}
+        {!team.length && <span className="text-[12.5px] text-slate-500">No employees yet. Add them under Employees.</span>}
+      </div>
+    </div>
+  );
+}

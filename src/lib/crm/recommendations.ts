@@ -30,7 +30,7 @@ export function recommendations(data: CrmData, settings: CrmSettings, now = Date
   const emp = new Map(data.employees.map((e) => [e.id, e]));
   const scoped = (cId?: string, pId?: string) => (!opts.customerId || opts.customerId === cId) && (!opts.propertyId || opts.propertyId === pId);
   const yearAgo = now - 365 * DAY;
-  const recentlyActive = new Set(data.jobs.filter((j) => new Date(j.createdAt).getTime() > now - 240 * DAY).map((j) => j.propertyId));
+  const recentlyActive = new Set(data.jobs.filter((j) => !j.archived && new Date(j.createdAt).getTime() > now - 240 * DAY).map((j) => j.propertyId));
 
   // 1. repeat repairs → rebuild
   const repairs = new Map<string, number>();
@@ -84,7 +84,7 @@ export function recommendations(data: CrmData, settings: CrmSettings, now = Date
   if (!opts.customerId && !opts.propertyId) {
     const today = new Date(now).toDateString();
     for (const e of data.employees.filter((x) => x.active && ["technician", "crew_lead"].includes(x.role))) {
-      const jobs = data.jobs.filter((j) => j.assignedTo === e.id && j.scheduledStart && new Date(j.scheduledStart).toDateString() === today && j.status !== "cancelled").sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
+      const jobs = data.jobs.filter((j) => !j.archived && j.assignedTo === e.id && j.scheduledStart && new Date(j.scheduledStart).toDateString() === today && j.status !== "cancelled").sort((a, b) => a.scheduledStart!.localeCompare(b.scheduledStart!));
       for (let i = 0; i < jobs.length - 1; i++) {
         const end = new Date(jobs[i].scheduledStart!).getTime() + jobs[i].durationHrs * 3600000;
         const next = new Date(jobs[i + 1].scheduledStart!).getTime();
@@ -95,7 +95,7 @@ export function recommendations(data: CrmData, settings: CrmSettings, now = Date
       if (late) out.push({ id: `late:${late.id}`, kind: "schedule", severity: "high", title: `${e.firstName} is running late for job #${late.number}`, detail: `Scheduled ${time(late.scheduledStart)} at ${customerName(cust.get(late.customerId))}. Send an updated ETA.`, link: `/jobs/${late.id}` });
     }
     // unassigned work today / urgent unscheduled
-    for (const j of data.jobs.filter((x) => x.status === "unscheduled" && (x.priority === "urgent" || x.priority === "high"))) out.push({ id: `urg:${j.id}`, kind: "schedule", severity: j.priority === "urgent" ? "high" : "warn", title: `${j.priority === "urgent" ? "Urgent" : "High-priority"} job #${j.number} is not scheduled`, detail: `${customerName(cust.get(j.customerId))} · ${j.title}`, link: `/dispatch` });
+    for (const j of data.jobs.filter((x) => !x.archived && x.status === "unscheduled" && (x.priority === "urgent" || x.priority === "high"))) out.push({ id: `urg:${j.id}`, kind: "schedule", severity: j.priority === "urgent" ? "high" : "warn", title: `${j.priority === "urgent" ? "Urgent" : "High-priority"} job #${j.number} is not scheduled`, detail: `${customerName(cust.get(j.customerId))} · ${j.title}`, link: `/dispatch` });
   }
 
   // 6. approved estimates not scheduled
@@ -136,7 +136,7 @@ export function recommendations(data: CrmData, settings: CrmSettings, now = Date
 
   // 10. technician-specific: callbacks
   if (!opts.customerId) {
-    const openCallbacks = data.jobs.filter((j) => j.status === "callback");
+    const openCallbacks = data.jobs.filter((j) => !j.archived && j.status === "callback");
     for (const j of openCallbacks) out.push({ id: `cb:${j.id}`, kind: "schedule", severity: "warn", title: `Open callback: job #${j.number}`, detail: `${customerName(cust.get(j.customerId))} · original tech ${emp.get(idx.jobById.get(j.callbackOfJobId ?? "")?.assignedTo ?? "")?.firstName ?? "—"}`, link: `/jobs/${j.id}`, customerId: j.customerId });
   }
 

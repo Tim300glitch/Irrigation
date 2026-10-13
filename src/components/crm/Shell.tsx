@@ -130,6 +130,15 @@ function SampleDataBanner() {
   );
 }
 
+/**
+ * Every page renders its own shell, so the sidebar remounts on navigation.
+ * Remember its scroll position across mounts so it doesn't jump to the top.
+ */
+let navScrollTop = 0;
+function keepNavScroll(el: HTMLDivElement | null) {
+  if (el) el.scrollTop = navScrollTop;
+}
+
 export function useTheme() {
   useEffect(installTheme, []);
   const dark = useSyncExternalStore(themeStore.subscribe, themeStore.isDark, themeStore.serverIsDark);
@@ -206,7 +215,7 @@ export function CrmShell({ children, title }: { children: ReactNode; title?: str
           <div className="text-[10.5px] text-slate-500">Irrigation CRM</div>
         </div>
       </div>
-      <div className="no-scrollbar flex-1 overflow-y-auto px-2.5 pb-3">
+      <div ref={keepNavScroll} onScroll={(e) => (navScrollTop = e.currentTarget.scrollTop)} className="no-scrollbar flex-1 overflow-y-auto px-2.5 pb-3">
         {NAV.map((g, gi) => {
           const items = g.items.filter((i) => perms.has(i.perm));
           if (!items.length) return null;

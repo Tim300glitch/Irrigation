@@ -157,18 +157,24 @@ export function SignaturePad({ onSave, onCancel, name: initialName = "", label =
   const [name, setName] = useState(initialName);
   const [drawn, setDrawn] = useState(false);
   const drawing = useRef(false);
-  useEffect(() => {
+  // The pad is "paper": always white with dark ink in both themes, and the saved
+  // PNG has a white background so the signature reads on dark screens too.
+  const setup = () => {
     const c = ref.current!;
     const r = c.getBoundingClientRect();
+    if (!r.width || !r.height) return;
     c.width = r.width * 2;
     c.height = r.height * 2;
     const ctx = c.getContext("2d")!;
-    ctx.scale(2, 2);
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, r.width, r.height);
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#0f172a";
-  }, []);
+  };
+  useEffect(setup, []);
   const pos = (e: React.PointerEvent) => {
     const r = ref.current!.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
@@ -178,8 +184,12 @@ export function SignaturePad({ onSave, onCancel, name: initialName = "", label =
       <div className="relative">
         <canvas
           ref={ref}
-          className="h-40 w-full touch-none rounded-lg border-2 border-dashed border-slate-300 bg-white"
+          style={{ backgroundColor: "#ffffff" }}
+          className="h-40 w-full touch-none rounded-lg border-2 border-dashed border-slate-300"
           onPointerDown={(e) => {
+            // opened inside an animating dialog the first measure can be 0×0
+            const c = ref.current!;
+            if (!drawn && c.width !== Math.round(c.getBoundingClientRect().width * 2)) setup();
             drawing.current = true;
             (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
             const ctx = ref.current!.getContext("2d")!;
@@ -197,16 +207,15 @@ export function SignaturePad({ onSave, onCancel, name: initialName = "", label =
           }}
           onPointerUp={() => (drawing.current = false)}
         />
-        {!drawn && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[13px] text-slate-400">{label}</span>}
-        <span className="pointer-events-none absolute bottom-8 left-6 right-6 border-b border-slate-300" />
+        {!drawn && <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[13px]" style={{ color: "#94a3b8" }}>{label}</span>}
+        <span className="pointer-events-none absolute bottom-8 left-6 right-6 border-b" style={{ borderColor: "#cbd5e1" }} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Printed name" className="h-9 min-w-[160px] flex-1 rounded-md border border-slate-300 bg-white px-2.5 text-[13px]" />
         <Button
           variant="ghost"
           onClick={() => {
-            const c = ref.current!;
-            c.getContext("2d")!.clearRect(0, 0, c.width, c.height);
+            setup();
             setDrawn(false);
           }}
         >

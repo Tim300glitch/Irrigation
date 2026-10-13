@@ -63,11 +63,16 @@ export function defaultSettings(): CrmSettings {
     statusLabels: {},
     notificationPrefs: Object.fromEntries(NOTIFICATION_TYPES.map((n) => [n.id, true])) as CrmSettings["notificationPrefs"],
     rolePermissions: DEFAULT_ROLE_PERMISSIONS,
-    nextNumbers: { estimate: 1001, job: 2001, invoice: 3001, changeOrder: 1 },
+    nextNumbers: { estimate: 1001, job: 2001, invoice: 3001, changeOrder: 1, purchaseOrder: 501 },
   };
 }
 
 /* ───────────────────────── Lines ───────────────────────── */
+
+/** Price-book items marked "default for" this job type, as lines with their default quantities. */
+export function defaultLines(items: InventoryItem[], serviceType: ServiceType): LineItem[] {
+  return items.filter((i) => i.active && i.defaultFor?.some((d) => d.serviceType === serviceType)).map((i) => lineFromItem(i, i.defaultFor!.find((d) => d.serviceType === serviceType)!.qty || 1));
+}
 
 export function lineFromItem(item: InventoryItem, qty: number, over: Partial<LineItem> = {}): LineItem {
   const kind = item.category === "labor" ? "labor" : item.category === "equipment" ? "equipment" : "material";
