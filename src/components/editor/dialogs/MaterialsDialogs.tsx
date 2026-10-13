@@ -204,7 +204,7 @@ export function EstimateDialog({ onClose }: { onClose: () => void }) {
       open
       onClose={onClose}
       title={customer ? "Customer proposal" : "Cost estimate (contractor view)"}
-      subtitle={customer ? "Markup is folded into prices; internal costs are hidden." : "Prices from your material database. Edit a unit cost to override it for this project, or save it to the database."}
+      subtitle={customer ? "Markup is folded into prices; internal costs are hidden." : "Prices from your material database. Edit a quantity or unit cost to override it for this project, or save a price to the database."}
       width={1040}
       footer={
         <>
@@ -241,7 +241,29 @@ export function EstimateDialog({ onClose }: { onClose: () => void }) {
                           {!customer && l.description && <div className="text-[11px] text-slate-500">{l.description}</div>}
                           {!l.priced && <Badge tone="amber">no price</Badge>}
                         </td>
-                        <td className="px-2 text-right">{l.orderQty}</td>
+                        <td className="px-2 text-right">
+                          <div className="ml-auto flex w-28 items-center justify-end gap-1">
+                            <NumberInput
+                              value={l.orderQty}
+                              step={1}
+                              min={0}
+                              onChange={(v) =>
+                                apply((d) => {
+                                  if (l.manual) {
+                                    const m = d.estimate.manualItems.find((x) => x.id === l.key);
+                                    if (m) m.quantity = v;
+                                  } else d.estimate.qtyOverrides[l.key] = v;
+                                })
+                              }
+                              className={est.qtyOverrides[l.key] !== undefined ? "rounded-md ring-2 ring-amber-200" : ""}
+                            />
+                            {est.qtyOverrides[l.key] !== undefined && (
+                              <button title="Reset to calculated quantity" className="text-slate-400 hover:text-slate-700" onClick={() => apply((d) => void delete d.estimate.qtyOverrides[l.key])}>
+                                <RotateCcw size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-2">{l.unit}</td>
                         <td className="px-2 text-right">
                           {customer || l.manual ? (
