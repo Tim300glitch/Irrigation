@@ -5,9 +5,8 @@ import { useAnalysis } from "@/store/analysisStore";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { Button, Field, Modal, NumberInput, Select, Stat, cn } from "../../ui";
 import { CLIMATES, PLANT_KC, SOIL, scheduleZone, staticClimate, waterForArea, SUN_FACTOR, suggestSchedule, wateringDaysPerWeek, DAY_PATTERNS } from "@/lib/irrigation/schedule";
-import { headPerformance, precipClass, type PrecipClass } from "@/lib/irrigation/sprinkler";
+import { projectWaterUse, zoneWaterUse } from "@/lib/irrigation/waterUse";
 import type { ClimateId, PlantType, SoilType, SunExposure } from "@/lib/model/types";
-import { dripCalc } from "@/lib/irrigation/drip";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -20,31 +19,17 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
   const analysis = useAnalysis();
   const [month, setMonth] = useState(6);
   const cmp = project.comparison;
-  const zoneCls = (zid: string): PrecipClass => {
-    const h = project.sprinklers.find((s) => s.zoneId === zid);
-    if (h) return precipClass(headPerformance(h).product.category);
-    return project.drips.some((d) => d.zoneId === zid) ? "drip" : "spray";
-  };
-  const rows = useMemo(() => {
-    if (!analysis) return [];
-    return [...project.zones]
-      .sort((a, b) => a.number - b.number)
-      .map((z) => {
-        const zr = analysis.hyd.zones.find((r) => r.zoneId === z.id)!;
-        const cls = zoneCls(z.id);
-        const zrAdj = cls === "drip" && project.drips.some((d) => d.zoneId === z.id) ? { ...zr, avgPrecip: dripCalc(project.drips.find((d) => d.zoneId === z.id)!).precipInHr } : zr;
-        return { z, zr: zrAdj, cls, s: scheduleZone(z, zrAdj, cls, cmp.climate, month) };
-      });
-  }, [project, analysis, month, cmp.climate]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = useMemo(() => (analysis ? zoneWaterUse(project, analysis.hyd, cmp.climate, month) : []), [project, analysis, month, cmp.climate]);
   if (!analysis) return null;
   const weekly = rows.reduce((a, r) => a + r.s.gallonsPerWeek, 0);
   const minutesWeek = rows.reduce((a, r) => a + r.s.runtimeMinWeek, 0);
   const daysOf = (z: (typeof project.zones)[number]) => z.schedule.days ?? DAY_PATTERNS[wateringDaysPerWeek(z)];
   const byWeekday = WEEKDAYS.map((_d, wd) => rows.reduce((a, r) => a + (daysOf(r.z).includes(wd) ? r.s.gallonsPerDay : 0), 0));
   const maxDay = Math.max(1, ...byWeekday);
-  const monthly = rows.reduce((a, r) => a + r.s.gallonsPerMonth, 0);
-  const annual = MONTHS.reduce((acc, _m, mi) => acc + rows.reduce((a, r) => a + scheduleZone(r.z, r.zr, r.cls, cmp.climate, mi).gallonsPerMonth, 0), 0);
-  const smart = project.equipment.some((e) => e.type === "smart-controller");
+  const use = projectWaterUse(project, analysis.hyd, month);
+  const monthly = use.gallonsPerMonth;
+  const annual = use.gallonsPerYear;
+  const smart = use.smartFactor < 1;
   const proposedMonthly = monthly * (smart ? 1 - cmp.smartControllerSavingsPct / 100 : 1);
   // current system estimate
   const irrigatedArea = analysis.totals.irrigatedArea;

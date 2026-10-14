@@ -12,6 +12,7 @@ import { autoZone } from "../irrigation/autoZone";
 import { dripCalc } from "../irrigation/drip";
 import type { Sprinkler } from "../model/types";
 import { scheduleZone, suggestSchedule } from "../irrigation/schedule";
+import { projectWaterUse, zoneWaterUse } from "../irrigation/waterUse";
 import { createDemoProject } from "../model/demo";
 import { analyzeProject } from "../analysis";
 
@@ -196,6 +197,19 @@ describe("scheduling", () => {
     expect(july.map((p) => p.startTime)).toEqual(["05:00", "05:20"]);
     const jan = suggestSchedule(zones, "ca-inland", 0, () => 20);
     expect(jan[0].daysPerWeek).toBeLessThan(july[0].daysPerWeek);
+  });
+});
+
+describe("project water use", () => {
+  test("totals add up every zone's schedule", () => {
+    const p = createDemoProject();
+    const a = analyzeProject(p, defaultMaterialProducts());
+    const rows = zoneWaterUse(p, a.hyd, p.comparison.climate, 6);
+    const u = projectWaterUse(p, a.hyd, 6);
+    expect(rows).toHaveLength(p.zones.length);
+    expect(u.gallonsPerWeek).toBeGreaterThan(0);
+    expect(u.gallonsPerWeek).toBeCloseTo(rows.reduce((t, r) => t + r.s.gallonsPerWeek, 0), 6);
+    expect(u.gallonsPerYear).toBeGreaterThan(u.gallonsPerMonth);
   });
 });
 
