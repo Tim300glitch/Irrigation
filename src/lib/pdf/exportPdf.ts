@@ -20,6 +20,7 @@ import { HEAD_NAMES, PIPE_STYLE } from "../plan/symbols";
 import { headPerformance } from "../irrigation/sprinkler";
 import { DAY_PATTERNS, wateringDaysPerWeek } from "../irrigation/schedule";
 import { projectWaterUse, zoneWaterUse } from "../irrigation/waterUse";
+import { waterPrice } from "../irrigation/waterRates";
 import { getProduct } from "../catalog/sprinklers";
 
 export type PaperSize = "letter" | "a4" | "tabloid" | "a3" | "arch-d";
@@ -575,7 +576,8 @@ function waterUseBlock(c: Ctx, x: number, y: number, w: number): number {
   if (!project.zones.length) return y;
   const u = projectWaterUse(project, analysis.hyd, 6);
   const f = u.smartFactor;
-  const gal = (n: number) => `${Math.round(n * f).toLocaleString()} gal`;
+  const price = waterPrice(project.comparison, project.meta.address);
+  const gal = (n: number) => `${Math.round(n * f).toLocaleString()} gal  ·  ${formatCurrency(n * f * price.perGallon)}`;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.text("ESTIMATED WATER USE — ALL ZONES", x, y);
@@ -594,7 +596,7 @@ function waterUseBlock(c: Ctx, x: number, y: number, w: number): number {
   }
   doc.setFontSize(6.5);
   doc.setTextColor(90);
-  const note = `Planning estimate from the zone watering schedule${f < 1 ? `, including ${project.comparison.smartControllerSavingsPct}% smart-controller savings` : ""}. Actual use depends on weather, season and schedule management.`;
+  const note = `Water cost at $${(price.perGallon * 1000).toFixed(2)} per 1,000 gal (${price.source}). Planning estimate from the zone watering schedule${f < 1 ? `, including ${project.comparison.smartControllerSavingsPct}% smart-controller savings` : ""}. Actual use depends on weather, season and schedule management.`;
   const lines = doc.splitTextToSize(note, w);
   doc.text(lines, x, yy + 1);
   doc.setTextColor(0);

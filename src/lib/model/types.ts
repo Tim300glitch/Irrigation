@@ -404,12 +404,16 @@ export interface ComparisonSettings {
   currentHeads?: HeadGroup[];
   /** what-if upgrade heads; when set, the proposed estimate uses these instead of the design's zones */
   proposedHeads?: HeadGroup[];
+  /** water price for the cost estimate; absent = auto (typical rate for the project's state) */
+  waterPrice?: { mode: "auto" | "manual"; amount: number; unit: WaterPriceUnit; state?: string };
   currentController: "timer" | "smart";
   currentRuntimeMinPerWeek?: number;
   currentGpm?: number;
   smartControllerSavingsPct: number;
   climate: ClimateId;
 }
+
+export type WaterPriceUnit = "gal" | "kgal" | "ccf";
 
 export type HeadBodyId =
   | "spray-2"

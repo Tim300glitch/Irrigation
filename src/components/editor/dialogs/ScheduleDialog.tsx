@@ -6,7 +6,8 @@ import { Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { Button, Field, Modal, NumberInput, Select, Stat, Toggle, cn } from "../../ui";
 import { CLIMATES, PLANT_KC, SOIL, scheduleZone, staticClimate, waterForArea, SUN_FACTOR, suggestSchedule, wateringDaysPerWeek, DAY_PATTERNS } from "@/lib/irrigation/schedule";
 import { projectWaterUse, zoneWaterUse } from "@/lib/irrigation/waterUse";
-import type { ClimateId, HeadBodyId, HeadGroup, NozzleTypeId, PlantType, SoilType, SunExposure } from "@/lib/model/types";
+import type { ClimateId, WaterPriceUnit, HeadBodyId, HeadGroup, NozzleTypeId, PlantType, SoilType, SunExposure } from "@/lib/model/types";
+import { PRICE_UNITS, STATE_WATER_RATES, stateFromAddress, waterPrice } from "@/lib/irrigation/waterRates";
 import { HEAD_BODIES, KIND_LABEL, NOZZLE_TYPES, currentHeadGroups, groupEfficiency, mixEfficiency, nozzleForBody, nozzlesFor } from "@/lib/irrigation/headTypes";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -74,6 +75,11 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
   const propEff = propHeads?.length ? mixEfficiency(propHeads) : undefined;
   const compareProposed = propEff ? waterForArea(irrigatedArea, eto * avgKc, propEff) * 4.345 * use.smartFactor : proposedMonthly;
   const savings = currentMonthly - compareProposed;
+  const price = waterPrice(cmp, project.meta.address);
+  const detectedState = stateFromAddress(project.meta.address);
+  const wp = cmp.waterPrice ?? { mode: "auto" as const, amount: 0, unit: "kgal" as WaterPriceUnit };
+  const setWp = (patch: Partial<typeof wp>) => apply((d) => void (d.comparison.waterPrice = { ...wp, ...patch }));
+  const usd = (gal: number) => `$${(gal * price.perGallon).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const upZone = (id: string, fn: (z: (typeof project.zones)[number]) => void) => apply((d) => fn(d.zones.find((x) => x.id === id)!));
   const toggleDay = (z: (typeof project.zones)[number], wd: number) =>
     upZone(z.id, (x) => {
@@ -228,6 +234,42 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
           <p className="col-span-2 mt-2 text-[11px] text-slate-500">Gallons by day of the week, all zones. Runtime = weekly plant need ÷ application efficiency ÷ precipitation rate. Cycle length limited by soil intake and slope to prevent runoff.</p>
         </div>
         <div className="rounded-lg border border-slate-200 p-3">
+          <div className="mb-2 text-[12.5px] font-semibold">Water cost estimate</div>
+          <div className="grid grid-cols-[1fr_1fr] gap-x-6">
+            <div className="flex flex-wrap items-end gap-2">
+              <Field label="Water price" className="w-40">
+                <Select value={wp.mode} onChange={(v: "auto" | "manual") => setWp({ mode: v, amount: v === "manual" && !wp.amount ? +(price.perGallon * PRICE_UNITS[wp.unit].gallons).toFixed(4) : wp.amount })} options={[{ value: "auto", label: "Auto (by state)" }, { value: "manual", label: "My price" }]} />
+              </Field>
+              {wp.mode === "auto" ? (
+                <Field label="State" className="w-52">
+                  <Select
+                    value={wp.state ?? ""}
+                    onChange={(v: string) => setWp({ state: v || undefined })}
+                    options={[{ value: "", label: detectedState ? `From address (${STATE_WATER_RATES[detectedState].name})` : "From address (not found, US average)" }, ...Object.entries(STATE_WATER_RATES).map(([code, r]) => ({ value: code, label: r.name }))]}
+                  />
+                </Field>
+              ) : (
+                <>
+                  <Field label="Price" className="w-28">
+                    <NumberInput value={wp.amount} step={wp.unit === "gal" ? 0.001 : 0.25} min={0} onChange={(v) => setWp({ amount: v })} />
+                  </Field>
+                  <Field label="Unit" className="w-48">
+                    <Select value={wp.unit} onChange={(u: WaterPriceUnit) => setWp({ unit: u })} options={(Object.keys(PRICE_UNITS) as WaterPriceUnit[]).map((u) => ({ value: u, label: PRICE_UNITS[u].label }))} />
+                  </Field>
+                </>
+              )}
+              <p className="basis-full text-[11px] text-slate-500">
+                Using ${(price.perGallon * 1000).toFixed(2)} per 1,000 gal (${price.perGallon.toFixed(4)}/gal), {price.source}.{price.auto ? " Auto rates are rough state averages; for an exact number, choose My price and enter the rate from a local water bill." : ""}
+              </p>
+            </div>
+            <div className="grid grid-cols-3 content-start gap-3">
+              <Stat label="Per week (est.)" value={usd(weekly * use.smartFactor)} sub="proposed design" />
+              <Stat label={`${MONTHS[month]} (est.)`} value={usd(proposedMonthly)} />
+              <Stat label="Per year (est.)" value={usd(annual * use.smartFactor)} />
+            </div>
+          </div>
+        </div>
+        <div className="rounded-lg border border-slate-200 p-3">
           <div className="mb-2 text-[12.5px] font-semibold">Current system vs proposed system ({MONTHS[month]})</div>
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -265,9 +307,9 @@ export function ScheduleDialog({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-3 rounded-md bg-slate-50 p-2.5">
-            <Stat label="Current (est.)" value={`${Math.round(currentMonthly).toLocaleString()} gal/mo`} sub={cmp.currentGpm && cmp.currentRuntimeMinPerWeek ? "from measured flow & runtime" : `${Math.round(curEff * 100)}% efficiency${cmp.currentController === "timer" ? ", timer" : ""}`} />
-            <Stat label="Proposed (est.)" value={`${Math.round(compareProposed).toLocaleString()} gal/mo`} sub={propEff ? `chosen heads, ${Math.round(propEff * 100)}% efficiency` : "from this design's schedule"} />
-            <Stat label="Estimated savings" value={<span className={savings > 0 ? "text-emerald-700" : "text-slate-700"}>{savings > 0 ? `${Math.round(savings).toLocaleString()} gal/mo` : "—"}</span>} sub={currentMonthly > 0 && savings > 0 ? `${((savings / currentMonthly) * 100).toFixed(0)}% (estimate)` : undefined} />
+            <Stat label="Current (est.)" value={`${Math.round(currentMonthly).toLocaleString()} gal/mo · ${usd(currentMonthly)}`} sub={cmp.currentGpm && cmp.currentRuntimeMinPerWeek ? "from measured flow & runtime" : `${Math.round(curEff * 100)}% efficiency${cmp.currentController === "timer" ? ", timer" : ""}`} />
+            <Stat label="Proposed (est.)" value={`${Math.round(compareProposed).toLocaleString()} gal/mo · ${usd(compareProposed)}`} sub={propEff ? `chosen heads, ${Math.round(propEff * 100)}% efficiency` : "from this design's schedule"} />
+            <Stat label="Estimated savings" value={<span className={savings > 0 ? "text-emerald-700" : "text-slate-700"}>{savings > 0 ? `${Math.round(savings).toLocaleString()} gal/mo · ${usd(savings)}` : "—"}</span>} sub={currentMonthly > 0 && savings > 0 ? `${((savings / currentMonthly) * 100).toFixed(0)}% (estimate)` : undefined} />
           </div>
           <p className="mt-2 text-[11px] text-slate-500">Savings are estimates for planning and customer discussion, not guaranteed results. Actual use depends on weather, maintenance, schedule management and local restrictions.</p>
         </div>
