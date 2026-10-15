@@ -400,11 +400,51 @@ export interface EstimateSettings {
 export interface ComparisonSettings {
   /** description of the existing system for water-savings comparison */
   currentSystemType: "spray" | "rotor" | "impact" | "mixed";
+  /** existing head types (body + nozzle) and their share of the irrigated area; replaces currentSystemType when set */
+  currentHeads?: HeadGroup[];
+  /** what-if upgrade heads; when set, the proposed estimate uses these instead of the design's zones */
+  proposedHeads?: HeadGroup[];
+  /** water price for the cost estimate; absent = auto (typical rate for the project's state) */
+  waterPrice?: { mode: "auto" | "manual"; amount: number; unit: WaterPriceUnit; state?: string };
   currentController: "timer" | "smart";
   currentRuntimeMinPerWeek?: number;
   currentGpm?: number;
   smartControllerSavingsPct: number;
   climate: ClimateId;
+}
+
+export type WaterPriceUnit = "gal" | "kgal" | "ccf";
+
+export type HeadBodyId =
+  | "spray-2"
+  | "spray-4"
+  | "spray-6"
+  | "spray-12"
+  | "spray-4-prs"
+  | "spray-6-prs"
+  | "spray-12-prs"
+  | "spray-4-prs-cv"
+  | "spray-6-prs-cv"
+  | "spray-12-prs-cv"
+  | "shrub-riser"
+  | "rotor-4"
+  | "rotor-6"
+  | "rotor-12"
+  | "rotor-4-prs"
+  | "rotor-4-prs-cv"
+  | "rotor-6-prs-cv"
+  | "impact-riser"
+  | "impact-popup"
+  | "bubbler"
+  | "drip";
+
+export type NozzleTypeId = "fixed-spray" | "van" | "strip" | "he-spray" | "mp-rotator" | "rotor-std" | "rotor-low-angle" | "rotor-mpr" | "impact-std" | "bubbler-std" | "drip-std";
+
+export interface HeadGroup {
+  body: HeadBodyId;
+  nozzle: NozzleTypeId;
+  /** share of the irrigated area, % */
+  sharePct: number;
 }
 
 export type ClimateId = "ca-coastal" | "ca-inland" | "ca-desert" | "pacific-nw" | "southwest" | "southeast" | "midwest" | "northeast";

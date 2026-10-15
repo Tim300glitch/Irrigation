@@ -12,6 +12,9 @@ import { autoZone } from "../irrigation/autoZone";
 import { dripCalc } from "../irrigation/drip";
 import type { Sprinkler } from "../model/types";
 import { scheduleZone, suggestSchedule } from "../irrigation/schedule";
+import { projectWaterUse, zoneWaterUse } from "../irrigation/waterUse";
+import { stateFromAddress, waterPrice } from "../irrigation/waterRates";
+import { currentHeadGroups, groupEfficiency, mixEfficiency, nozzleForBody, nozzlesFor } from "../irrigation/headTypes";
 import { createDemoProject } from "../model/demo";
 import { analyzeProject } from "../analysis";
 
@@ -196,6 +199,60 @@ describe("scheduling", () => {
     expect(july.map((p) => p.startTime)).toEqual(["05:00", "05:20"]);
     const jan = suggestSchedule(zones, "ca-inland", 0, () => 20);
     expect(jan[0].daysPerWeek).toBeLessThan(july[0].daysPerWeek);
+  });
+});
+
+describe("head & nozzle types for water savings", () => {
+  test("pressure regulation, check valves and better nozzles raise efficiency", () => {
+    const plain = groupEfficiency({ body: "spray-4", nozzle: "fixed-spray" });
+    const prs = groupEfficiency({ body: "spray-4-prs", nozzle: "fixed-spray" });
+    const prsCv = groupEfficiency({ body: "spray-4-prs-cv", nozzle: "fixed-spray" });
+    const mp = groupEfficiency({ body: "spray-4-prs-cv", nozzle: "mp-rotator" });
+    expect(prs).toBeGreaterThan(plain);
+    expect(prsCv).toBeGreaterThan(prs);
+    expect(mp).toBeGreaterThan(prsCv);
+  });
+  test("nozzles follow the body type", () => {
+    expect(nozzlesFor("rotor-4")).not.toContain("van");
+    expect(nozzlesFor("spray-4")).toContain("mp-rotator");
+    expect(nozzleForBody("rotor-4", "van")).toBe("rotor-std");
+    expect(nozzleForBody("spray-12", "van")).toBe("van");
+  });
+  test("mixed systems weight water use by area share", () => {
+    const a = { body: "spray-4" as const, nozzle: "fixed-spray" as const, sharePct: 50 };
+    const b = { body: "rotor-4" as const, nozzle: "rotor-std" as const, sharePct: 50 };
+    const e = mixEfficiency([a, b]);
+    expect(1 / e).toBeCloseTo(0.5 / groupEfficiency(a) + 0.5 / groupEfficiency(b), 9);
+    expect(currentHeadGroups({ currentSystemType: "rotor", currentController: "timer", smartControllerSavingsPct: 15, climate: "ca-inland" })[0].body).toBe("rotor-4");
+  });
+});
+
+describe("water price", () => {
+  const cmp = { currentSystemType: "spray" as const, currentController: "timer" as const, smartControllerSavingsPct: 15, climate: "ca-inland" as const };
+  test("finds the state in an address", () => {
+    expect(stateFromAddress("1842 Vista Grande Dr, Riverside, CA 92506")).toBe("CA");
+    expect(stateFromAddress("12 Elm St, Austin, Texas")).toBe("TX");
+    expect(stateFromAddress("somewhere")).toBeUndefined();
+  });
+  test("auto uses the state rate, manual converts the bill unit to per gallon", () => {
+    expect(waterPrice(cmp, "Riverside, CA 92506").state).toBe("CA");
+    expect(waterPrice({ ...cmp, waterPrice: { mode: "auto", amount: 0, unit: "kgal", state: "TX" } }, "Riverside, CA").state).toBe("TX");
+    const m = waterPrice({ ...cmp, waterPrice: { mode: "manual", amount: 7.48052, unit: "ccf" } }, "");
+    expect(m.perGallon).toBeCloseTo(0.01, 9);
+    expect(m.auto).toBe(false);
+  });
+});
+
+describe("project water use", () => {
+  test("totals add up every zone's schedule", () => {
+    const p = createDemoProject();
+    const a = analyzeProject(p, defaultMaterialProducts());
+    const rows = zoneWaterUse(p, a.hyd, p.comparison.climate, 6);
+    const u = projectWaterUse(p, a.hyd, 6);
+    expect(rows).toHaveLength(p.zones.length);
+    expect(u.gallonsPerWeek).toBeGreaterThan(0);
+    expect(u.gallonsPerWeek).toBeCloseTo(rows.reduce((t, r) => t + r.s.gallonsPerWeek, 0), 6);
+    expect(u.gallonsPerYear).toBeGreaterThan(u.gallonsPerMonth);
   });
 });
 

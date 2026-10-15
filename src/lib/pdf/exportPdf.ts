@@ -17,8 +17,10 @@ import { locate, referenceLines } from "../plan/references";
 import { offsetText } from "../plan/refPoints";
 import { formatCurrency, formatFeetInches, pipeSizeLabel, formatArea } from "../units/units";
 import { HEAD_NAMES, PIPE_STYLE } from "../plan/symbols";
-import { headPerformance, precipClass } from "../irrigation/sprinkler";
-import { scheduleZone } from "../irrigation/schedule";
+import { headPerformance } from "../irrigation/sprinkler";
+import { DAY_PATTERNS, wateringDaysPerWeek } from "../irrigation/schedule";
+import { projectWaterUse, zoneWaterUse } from "../irrigation/waterUse";
+import { waterPrice } from "../irrigation/waterRates";
 import { getProduct } from "../catalog/sprinklers";
 
 export type PaperSize = "letter" | "a4" | "tabloid" | "a3" | "arch-d";
@@ -517,25 +519,35 @@ function scheduleSheet(c: Ctx) {
   doc.setFontSize(9);
   doc.text("RECOMMENDED WATERING SCHEDULE (JULY, PLANNING ONLY)", area.x, y);
   doc.setFont("helvetica", "normal");
-  const srows = [...project.zones]
-    .sort((a, b) => a.number - b.number)
-    .map((z) => {
-      const zr = analysis.hyd.zones.find((r) => r.zoneId === z.id)!;
-      const h = project.sprinklers.find((s) => s.zoneId === z.id);
-      const cls = h ? precipClass(headPerformance(h).product.category) : "drip";
-      const s = scheduleZone(z, zr, cls, project.comparison.climate, 6);
-      return [String(z.number), z.plantType, `${z.schedule.daysPerWeek}`, s.precipInHr.toFixed(2), `${s.runtimeMinDay.toFixed(0)} min`, `${s.cycles} × ${s.cycleMin.toFixed(0)} min`, s.soakMin ? `${s.soakMin} min` : "—", s.gallonsPerDay.toFixed(0), s.gallonsPerMonth.toFixed(0)];
-    });
+  const zuse = zoneWaterUse(project, analysis.hyd, project.comparison.climate, 6);
+  const srows = zuse.map(({ z, s }) => [
+    String(z.number),
+    z.plantType,
+    (z.schedule.days ?? DAY_PATTERNS[wateringDaysPerWeek(z)]).map((d) => WEEKDAY_ABBR[d]).join(" "),
+    z.schedule.startTime ?? "—",
+    s.precipInHr.toFixed(2),
+    `${s.runtimeMinDay.toFixed(0)} min`,
+    `${s.cycles} × ${s.cycleMin.toFixed(0)} min`,
+    s.soakMin ? `${s.soakMin} min` : "—",
+    s.gallonsPerDay.toFixed(0),
+    Math.round(s.gallonsPerWeek).toLocaleString(),
+    Math.round(s.gallonsPerMonth).toLocaleString(),
+  ]);
+  const wk = zuse.reduce((a, r) => a + r.s.gallonsPerWeek, 0);
+  const mo = zuse.reduce((a, r) => a + r.s.gallonsPerMonth, 0);
+  srows.push(["ALL", `${zuse.length} zones total`, "", "", "", "", "", "", "", Math.round(wk).toLocaleString(), Math.round(mo).toLocaleString()]);
   const t2 = table(doc, area.x, y + 6, [
-    { label: "ZONE", w: w * 0.06 },
-    { label: "PLANT TYPE", w: w * 0.14 },
-    { label: "DAYS/WK", w: w * 0.08, align: "right" },
-    { label: "PR IN/HR", w: w * 0.09, align: "right" },
-    { label: "RUN/DAY", w: w * 0.11, align: "right" },
-    { label: "CYCLES", w: w * 0.14, align: "right" },
-    { label: "SOAK", w: w * 0.1, align: "right" },
-    { label: "GAL/DAY", w: w * 0.12, align: "right" },
-    { label: "GAL/MONTH", w: w * 0.12, align: "right" },
+    { label: "ZONE", w: w * 0.05 },
+    { label: "PLANT TYPE", w: w * 0.12 },
+    { label: "WATERING DAYS", w: w * 0.15 },
+    { label: "START", w: w * 0.06 },
+    { label: "PR IN/HR", w: w * 0.07, align: "right" },
+    { label: "RUN/DAY", w: w * 0.08, align: "right" },
+    { label: "CYCLES", w: w * 0.1, align: "right" },
+    { label: "SOAK", w: w * 0.07, align: "right" },
+    { label: "GAL/DAY", w: w * 0.09, align: "right" },
+    { label: "GAL/WEEK", w: w * 0.1, align: "right" },
+    { label: "GAL/MONTH", w: w * 0.11, align: "right" },
   ], srows);
   y = t2.y + 14;
   doc.setFontSize(7);
@@ -553,6 +565,42 @@ function scheduleSheet(c: Ctx) {
     `Irrigated area ${formatArea(analysis.totals.irrigatedArea)} · ${project.sprinklers.length} heads · ${project.zones.length} zones · ${Math.round(analysis.totals.totalPipe)} ft pipe (${Math.round(analysis.totals.mainline)} ft mainline)`,
   ];
   doc.text(lines.flatMap((l) => doc.splitTextToSize(l, w)), area.x, y + 10);
+}
+
+const WEEKDAY_ABBR = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+/** Estimated water use of the whole system, for the estimate / proposal sheet. */
+/** Returns the y below the block. */
+function waterUseBlock(c: Ctx, x: number, y: number, w: number): number {
+  const { doc, project, analysis } = c;
+  if (!project.zones.length) return y;
+  const u = projectWaterUse(project, analysis.hyd, 6);
+  const f = u.smartFactor;
+  const price = waterPrice(project.comparison, project.meta.address);
+  const gal = (n: number) => `${Math.round(n * f).toLocaleString()} gal  ·  ${formatCurrency(n * f * price.perGallon)}`;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("ESTIMATED WATER USE — ALL ZONES", x, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const rows: [string, string][] = [
+    ["Per week (July, peak season)", gal(u.gallonsPerWeek)],
+    ["July", gal(u.gallonsPerMonth)],
+    ["Per year", gal(u.gallonsPerYear)],
+  ];
+  let yy = y + 13;
+  for (const [l, v] of rows) {
+    doc.text(l, x, yy);
+    doc.text(v, x + w, yy, { align: "right" });
+    yy += 11;
+  }
+  doc.setFontSize(6.5);
+  doc.setTextColor(90);
+  const note = `Water cost at $${(price.perGallon * 1000).toFixed(2)} per 1,000 gal (${price.source}). Planning estimate from the zone watering schedule${f < 1 ? `, including ${project.comparison.smartControllerSavingsPct}% smart-controller savings` : ""}. Actual use depends on weather, season and schedule management.`;
+  const lines = doc.splitTextToSize(note, w);
+  doc.text(lines, x, yy + 1);
+  doc.setTextColor(0);
+  return yy + lines.length * 8;
 }
 
 function materialsSheet(c: Ctx) {
@@ -608,6 +656,7 @@ function materialsSheet(c: Ctx) {
         [`Tax (${project.estimate.taxPct}%)`, e.tax],
         ["TOTAL PROJECT COST", e.total],
       ];
+  const waterEnd = waterUseBlock(c, area2.x, y + 4, w * 0.4);
   doc.setFontSize(8);
   for (const [l, v] of totals) {
     const bold = l.startsWith("TOTAL");
@@ -624,7 +673,7 @@ function materialsSheet(c: Ctx) {
   }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
-  doc.text(customer ? "Proposal valid for 30 days. Price includes materials, installation and cleanup as shown on the irrigation plan." : "Internal estimate — contains markup and cost data. Do not send to customer; export in customer mode for proposals.", area2.x, Math.min(y + 8, area2.y + area2.h - 4), { maxWidth: w * 0.55 });
+  doc.text(customer ? "Proposal valid for 30 days. Price includes materials, installation and cleanup as shown on the irrigation plan." : "Internal estimate — contains markup and cost data. Do not send to customer; export in customer mode for proposals.", area2.x, Math.min(Math.max(y, waterEnd) + 8, area2.y + area2.h - 4), { maxWidth: w * 0.55 });
 }
 
 export async function exportPdf(project: Project, analysis: ProjectAnalysis, opts: ExportOptions): Promise<Blob> {
